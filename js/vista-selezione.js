@@ -4,6 +4,7 @@ import { stato, impostaBozza } from './state.js';
 import { FILTRI_INIZIALI, applicaFiltri, ordina } from './filtri.js';
 import { ordinaleTitolo, etichettaRating } from './rating.js';
 import { esc, fmtNum, fmtData } from './formati.js';
+import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
 
 const radice = document.getElementById('view-selezione');
 const PASSO = 100; // righe mostrate alla volta
@@ -131,6 +132,14 @@ function disegna() {
 
 /* ---------- Tabella ---------- */
 
+function bottonePiu(t, inBozza) {
+  if (!inBozza && t.valuta !== VALUTA_PORTAFOGLIO) {
+    return `<button class="btn-piu" disabled title="Il portafoglio accetta solo titoli in ${VALUTA_PORTAFOGLIO}" aria-label="Non disponibile: valuta diversa da ${VALUTA_PORTAFOGLIO}">+</button>`;
+  }
+  return `<button class="btn-piu ${inBozza ? 'is-aggiunto' : ''}" data-isin="${esc(t.isin)}"
+        aria-label="${inBozza ? 'Togli dal portafoglio' : 'Aggiungi al portafoglio'}">${inBozza ? '✓' : '+'}</button>`;
+}
+
 function riga(t, inBozza) {
   const ord = ordinaleTitolo(t);
   const rating = ord === null
@@ -150,8 +159,7 @@ function riga(t, inBozza) {
       <div class="num forte">${fmtNum(t.rendNetto)}%</div>
       <div class="num">${fmtNum(t.durationLorda, 1)}</div>
       <div>${rating}</div>
-      <button class="btn-piu ${inBozza ? 'is-aggiunto' : ''}" data-isin="${esc(t.isin)}"
-        aria-label="${inBozza ? 'Togli dal portafoglio' : 'Aggiungi al portafoglio'}">${inBozza ? '✓' : '+'}</button>
+      ${bottonePiu(t, inBozza)}
     </div>`;
 }
 

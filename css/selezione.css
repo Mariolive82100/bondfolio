@@ -61,6 +61,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .btn-piu.is-aggiunto { background: var(--accento); color: #fff; }
+.btn-piu:disabled { border-color: #D0D5DD; color: #B0B7C3; background: #F3F4F6; cursor: not-allowed; }
 
 .tabella-piede { padding: 14px 20px; border-top: 1px solid #EEF0F3; display: flex; justify-content: center; }
 .tabella-piede:empty { display: none; }
