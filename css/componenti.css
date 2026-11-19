@@ -42,3 +42,4 @@
 .messaggio { margin-top: 16px; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; }
 .messaggio-errore { background: #FDE8E4; color: #9A2B1A; }
 .messaggio-avviso { background: #FEF3C7; color: #92400E; }
+.messaggio-ok { background: #E3F1ED; color: #0B5A4A; }

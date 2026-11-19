@@ -1,11 +1,13 @@
 // Schermata 1: caricamento del file con l'elenco delle obbligazioni
 
-import { stato, impostaDati } from './state.js';
+import { stato, impostaDati, impostaBozza, impostaCostruito } from './state.js';
 import { leggiCsv } from './csv-loader.js';
 import { salva, carica, elimina } from './archivio.js';
+import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, haPortafogli } from './esporta-importa.js';
 
 const radice = document.getElementById('view-dati');
 let messaggio = null; // { tipo: 'errore' | 'avviso', testo: '...' }
+let messaggioPortafogli = null; // stesso formato, per la scheda dei portafogli
 
 function esc(testo) {
   return String(testo).replace(/[&<>"']/g, c => (
@@ -68,6 +70,18 @@ function disegna() {
       </div>`;
   }
 
+  html += `
+    <div class="card card-flex scheda-portafogli">
+      <div class="card-titolo">Portafogli: esporta e importa</div>
+      <div class="testo-soft">Per portare la bozza e il portafoglio costruito su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: va caricato a parte.</div>
+      <div class="gruppo-bottoni">
+        <button class="btn btn-primario" id="btn-esporta">Esporta portafogli</button>
+        <button class="btn btn-secondario" id="btn-importa">Importa portafogli</button>
+        <input type="file" id="input-importa" accept=".json,application/json" hidden>
+      </div>
+      ${messaggioPortafogli ? `<div class="messaggio messaggio-${messaggioPortafogli.tipo}">${esc(messaggioPortafogli.testo)}</div>` : ''}
+    </div>`;
+
   radice.innerHTML = html;
   collega();
 }
@@ -87,6 +101,20 @@ function collega() {
     if (e.dataTransfer.files[0]) leggiFile(e.dataTransfer.files[0]);
   });
 
+  document.getElementById('btn-esporta').addEventListener('click', () => {
+    if (!haPortafogli()) {
+      messaggioPortafogli = { tipo: 'avviso', testo: 'Non c\'è ancora nessun portafoglio da esportare: la bozza e il costruito sono vuoti.' };
+    } else {
+      scaricaTesto(nomeFileEsportazione(), creaEsportazione());
+      messaggioPortafogli = { tipo: 'ok', testo: 'File esportato: lo trovi nella cartella dei download (' + nomeFileEsportazione() + ').' };
+    }
+    disegna();
+  });
+
+  const inputImporta = document.getElementById('input-importa');
+  document.getElementById('btn-importa').addEventListener('click', () => inputImporta.click());
+  inputImporta.addEventListener('change', () => { if (inputImporta.files[0]) importaFile(inputImporta.files[0]); });
+
   const vai = document.getElementById('btn-vai');
   if (vai) {
     vai.addEventListener('click', () => {
@@ -103,6 +131,24 @@ function collega() {
       disegna();
     });
   }
+}
+
+async function importaFile(file) {
+  try {
+    const r = leggiImportazione(await file.text());
+    if (haPortafogli() && !confirm('L\'importazione sostituisce la bozza (' + stato.bozza.length + ' titoli) e il portafoglio costruito (' +
+      stato.costruito.length + ' acquisti) che hai ora in questo browser. Continuare?')) return;
+    impostaBozza(r.bozza);
+    impostaCostruito(r.costruito);
+    messaggioPortafogli = {
+      tipo: r.scartati > 0 ? 'avviso' : 'ok',
+      testo: 'Importati ' + r.bozza.length + (r.bozza.length === 1 ? ' titolo' : ' titoli') + ' in bozza e ' + r.costruito.length + (r.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' nel portafoglio costruito.' +
+        (r.scartati > 0 ? ' Voci scartate perché non valide: ' + r.scartati + '.' : '')
+    };
+  } catch (errore) {
+    messaggioPortafogli = { tipo: 'errore', testo: errore.message };
+  }
+  disegna();
 }
 
 async function leggiFile(file) {
