@@ -1,5 +1,5 @@
 /* ---------- Grafici (schermata Portafoglio e analisi) ---------- */
-.grafici { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.grafici { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 20px; }
 .grafici .card { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .grafici .testo-soft { margin-bottom: 8px; min-height: 18px; }
 
@@ -10,15 +10,26 @@
 .col-area { width: 100%; height: 110px; display: flex; align-items: flex-end; }
 .col-barra { width: 100%; background: var(--accento); border-radius: 4px 4px 0 0; }
 .colonna:hover .col-barra { background: #09594A; }
-.col-etichetta { font-size: 10px; color: var(--testo-soft); }
+.col-etichetta { font-size: 10px; color: var(--testo-soft); white-space: nowrap; overflow: visible; }
 
-/* Barre orizzontali */
-.barre { display: flex; flex-direction: column; gap: 8px; }
-.barra-riga { display: grid; grid-template-columns: minmax(80px, 1.1fr) 2fr 48px; gap: 8px; align-items: center; font-size: 12px; }
-.barra-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.barra-pista { height: 12px; border-radius: 6px; background: #EEF0F3; overflow: hidden; }
-.barra-riempi { height: 100%; background: var(--accento); border-radius: 6px; }
-.barra-riempi.barra-altri { background: #98A2B3; }
-.barra-pct { text-align: right; font-variant-numeric: tabular-nums; color: var(--testo-soft); }
+/* Torte (anello) */
+.torta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; }
+.torta-disegno { position: relative; width: 190px; height: 190px; flex: 0 0 auto; }
+.torta-disegno svg { width: 100%; height: 100%; display: block; }
+.torta .fetta { stroke-width: 34; cursor: pointer; outline: none; transition: stroke-width 0.15s, opacity 0.15s; }
+.torta .fetta.is-attiva { stroke-width: 44; }
+.torta.ha-attiva .fetta:not(.is-attiva) { opacity: 0.35; }
+.torta-centro {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 0 44px; text-align: center; pointer-events: none;
+}
+.torta-centro strong { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.torta-centro span { font-size: 11px; color: var(--testo-soft); line-height: 1.25; max-height: 28px; overflow: hidden; }
+.torta-legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 150px; }
+.torta-legenda li { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; font-size: 12px; padding: 3px 6px; border-radius: 6px; cursor: default; }
+.torta-legenda li.is-attiva { background: #EEF0F3; }
+.torta-colore { width: 10px; height: 10px; border-radius: 3px; }
+.torta-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.torta-pct { font-variant-numeric: tabular-nums; color: var(--testo-soft); }
 
 .grafico-vuoto { padding: 40px 0; text-align: center; color: var(--testo-soft); font-size: 13px; }

@@ -1,8 +1,8 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
 import { stato, impostaBozza } from './state.js';
-import { risolviPosizioni, calcolaTotali, calcolaIndicatori, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, incassiMensili } from './portafoglio-calcoli.js';
-import { graficoColonne, graficoBarre, graficoVuoto } from './grafici.js';
+import { risolviPosizioni, calcolaTotali, calcolaIndicatori, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, pesoPerTitolo, pesoPerTipo, pesoPerRating, incassiMensili } from './portafoglio-calcoli.js';
+import { graficoColonne, graficoTorta, graficoVuoto } from './grafici.js';
 import { cedolaNetta } from './filtri.js';
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, fmtData, leggiDecimale, NOMI_MESI } from './formati.js';
@@ -119,7 +119,6 @@ function disegna() {
         <div class="card"><div class="testo-soft">Scadenza media</div><div class="valore" id="t-scadenza"></div></div>
         <div class="card"><div class="testo-soft">Cedola media netta</div><div class="valore" id="t-cedola-media"></div></div>
         <div class="card"><div class="testo-soft">Rating medio</div><div class="valore" id="t-rating"></div><div class="testo-soft" id="t-rating-nota"></div></div>
-        <div class="card"><div class="testo-soft">Governativi / Sovranaz. / Societari</div><div class="valore" id="t-quote"></div></div>
       </div>
 
       <div class="grafici">
@@ -129,14 +128,29 @@ function disegna() {
           <div id="g-scadenze"></div>
         </section>
         <section class="card">
+          <div class="card-titolo">Incassi cedolari netti per mese</div>
+          <div class="testo-soft" id="g-cedole-nota"></div>
+          <div id="g-cedole"></div>
+        </section>
+        <section class="card">
           <div class="card-titolo">Diversificazione per emittente</div>
           <div class="testo-soft">Peso sul nominale totale</div>
           <div id="g-emittenti"></div>
         </section>
         <section class="card">
-          <div class="card-titolo">Incassi cedolari netti per mese</div>
-          <div class="testo-soft" id="g-cedole-nota"></div>
-          <div id="g-cedole"></div>
+          <div class="card-titolo">Peso dei singoli titoli</div>
+          <div class="testo-soft">Peso sul nominale totale</div>
+          <div id="g-titoli"></div>
+        </section>
+        <section class="card">
+          <div class="card-titolo">Tipo di emittente</div>
+          <div class="testo-soft">Governativi, sovranazionali, societari</div>
+          <div id="g-tipo"></div>
+        </section>
+        <section class="card">
+          <div class="card-titolo">Distribuzione per rating</div>
+          <div class="testo-soft">Peso sul nominale totale</div>
+          <div id="g-rating"></div>
         </section>
       </div>
     </div>`;
@@ -175,8 +189,6 @@ function aggiornaNumeri() {
   set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
   set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
     ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
-  set('t-quote', ind.quote.gov === null ? '—'
-    : fmtNum(ind.quote.gov, 0) + ' / ' + fmtNum(ind.quote.sov, 0) + ' / ' + fmtNum(ind.quote.corp, 0) + ' %');
   aggiornaGrafici(posizioni);
 
   set('avviso-escluse', tot.escluse === 1
@@ -184,7 +196,7 @@ function aggiornaNumeri() {
     : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file o non in euro). Puoi toglierli con la ✕.');
 }
 
-// Ridisegna i tre grafici (a ogni modifica dei nominali)
+// Ridisegna i grafici (a ogni modifica dei nominali)
 function aggiornaGrafici(posizioni) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
@@ -195,11 +207,16 @@ function aggiornaGrafici(posizioni) {
     titolo: x.anno + ': ' + fmtNum(x.nominale, 0) + ' € di nominale'
   }))));
 
-  const emittenti = pesoPerEmittente(posizioni);
-  metti('g-emittenti', emittenti.length === 0 ? graficoVuoto('Nessun dato') : graficoBarre(emittenti.map(x => ({
-    nome: x.nome, pct: x.pct, altri: x.altri,
-    titolo: x.nome + ': ' + fmtNum(x.pct, 1) + '% (' + fmtNum(x.nominale, 0) + ' € di nominale)'
-  }))));
+  // Torte: i pesi sono sul nominale; al centro, a riposo, il nominale totale
+  const totaleNominale = posizioni.reduce((s, p) => s + (p.valida ? p.nominale : 0), 0);
+  const centro = { titolo: fmtNum(totaleNominale, 0) + ' €', sotto: 'nominale totale' };
+  const torta = voci => voci.length === 0 ? graficoVuoto('Nessun dato') : graficoTorta(voci.map(x => ({
+    nome: x.nome, pct: x.pct, altri: x.altri, valoreTesto: fmtNum(x.nominale, 0) + ' € di nominale'
+  })), centro);
+  metti('g-emittenti', torta(pesoPerEmittente(posizioni)));
+  metti('g-titoli', torta(pesoPerTitolo(posizioni)));
+  metti('g-tipo', torta(pesoPerTipo(posizioni)));
+  metti('g-rating', torta(pesoPerRating(posizioni)));
 
   const incassi = incassiMensili(posizioni);
   const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);

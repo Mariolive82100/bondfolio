@@ -140,18 +140,19 @@ export function scalettaScadenze(posizioni) {
   return lista;
 }
 
-// Peso sul nominale di ciascun emittente, dal più pesante; oltre i primi 'massimo' il resto va in "Altri"
-export function pesoPerEmittente(posizioni, massimo = 6) {
-  const perEmittente = new Map();
+// Raggruppa i titoli validi per una chiave (es. emittente) e calcola il peso sul nominale di ciascun gruppo,
+// dal più pesante; oltre i primi 'massimo' il resto va in "Altri". Restituisce [{ nome, nominale, pct, altri }]
+function distribuzione(posizioni, chiave, massimo) {
+  const gruppi = new Map();
   let totale = 0;
   posizioni.forEach(p => {
     if (!p.valida) return;
-    const nome = p.titolo.emittente || p.titolo.emittenteCodice || p.isin;
-    perEmittente.set(nome, (perEmittente.get(nome) || 0) + p.nominale);
+    const nome = chiave(p);
+    gruppi.set(nome, (gruppi.get(nome) || 0) + p.nominale);
     totale += p.nominale;
   });
   if (totale === 0) return [];
-  const ordinati = Array.from(perEmittente, ([nome, nominale]) => ({ nome: nome, nominale: nominale }))
+  const ordinati = Array.from(gruppi, ([nome, nominale]) => ({ nome: nome, nominale: nominale }))
     .sort((a, b) => b.nominale - a.nominale);
   let lista = ordinati;
   if (ordinati.length > massimo) {
@@ -159,6 +160,40 @@ export function pesoPerEmittente(posizioni, massimo = 6) {
     lista = ordinati.slice(0, massimo).concat([{ nome: 'Altri (' + (ordinati.length - massimo) + ')', nominale: resto, altri: true }]);
   }
   return lista.map(x => Object.assign({ pct: x.nominale / totale * 100 }, x));
+}
+
+export function pesoPerEmittente(posizioni, massimo = 6) {
+  return distribuzione(posizioni, p => p.titolo.emittente || p.titolo.emittenteCodice || p.isin, massimo);
+}
+
+export function pesoPerTitolo(posizioni, massimo = 6) {
+  return distribuzione(posizioni, p => p.titolo.nome || p.isin, massimo);
+}
+
+const NOMI_TIPO = { gov: 'Governativi', sov: 'Sovranazionali', corp: 'Societari' };
+export function pesoPerTipo(posizioni) {
+  return distribuzione(posizioni, p => NOMI_TIPO[tipoEmittente(p.titolo)], 10);
+}
+
+// Peso per fascia di rating (S&P, o Moody's se manca), dalla migliore alla peggiore. Zero titoli in una fascia = fascia omessa.
+const FASCE_RATING = [
+  { nome: 'AAA', da: 1, a: 1 }, { nome: 'AA', da: 2, a: 4 }, { nome: 'A', da: 5, a: 7 },
+  { nome: 'BBB', da: 8, a: 10 }, { nome: 'BB e inferiori', da: 11, a: 99 }
+];
+export function pesoPerRating(posizioni) {
+  const somme = new Array(FASCE_RATING.length + 1).fill(0);
+  let totale = 0;
+  posizioni.forEach(p => {
+    if (!p.valida) return;
+    const r = ordinaleTitolo(p.titolo);
+    const i = r === null ? FASCE_RATING.length : FASCE_RATING.findIndex(f => r >= f.da && r <= f.a);
+    somme[i] += p.nominale;
+    totale += p.nominale;
+  });
+  if (totale === 0) return [];
+  const lista = FASCE_RATING.map((f, i) => ({ nome: f.nome, nominale: somme[i] }));
+  lista.push({ nome: 'Senza rating', nominale: somme[FASCE_RATING.length], altri: true });
+  return lista.filter(x => x.nominale > 0).map(x => Object.assign({ pct: x.nominale / totale * 100 }, x));
 }
 
 // Cedole nette incassate in ciascun mese (12 numeri, gennaio..dicembre).
