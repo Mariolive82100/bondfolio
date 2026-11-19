@@ -9,6 +9,7 @@ import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, fmtData, leggiNumero, oggiIso } from './formati.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
+import { dataRegolamento, calcolaRateo } from './rateo.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -33,61 +34,86 @@ export function htmlConferma() {
   }
 
   const oggi = oggiIso();
-  const righe = posizioni.map(p => `
+  const reg = dataRegolamento(oggi);
+  const righe = posizioni.map(p => {
+    const r = calcolaRateo(p.titolo, reg);
+    const rateoEuro = r ? p.nominale * r.per100 / 100 : 0;
+    const avviso = !r || r.stima
+      ? ` · <span class="pill pill-medio" title="${esc(r ? r.nota : 'Rateo non calcolabile')}">rateo da verificare</span>` : '';
+    return `
     <div class="riga" data-isin="${esc(p.isin)}" data-nominale="${p.nominale}">
-      <div class="cella-titolo"><strong title="${esc(p.titolo.nome)}">${esc(p.titolo.nome)}</strong><small>${esc(p.isin)}</small></div>
+      <div class="cella-titolo"><strong title="${esc(p.titolo.nome)}">${esc(p.titolo.nome)}</strong><small>${esc(p.isin)}${avviso}</small></div>
       <div class="num">${fmtNum(p.nominale, 0)}</div>
       <div class="num"><input class="input-conferma in-carico" type="text" inputmode="decimal" value="${fmtNum(p.titolo.prezzo, 2)}" aria-label="Prezzo di carico"></div>
       <div><input class="input-conferma in-data" type="date" value="${oggi}" aria-label="Data di acquisto"></div>
+      <div><input class="input-conferma in-reg" type="date" value="${reg || ''}" aria-label="Data di regolamento"></div>
+      <div class="num"><input class="input-conferma in-rateo" type="text" inputmode="decimal" value="${fmtNum(rateoEuro)}" aria-label="Rateo lordo in euro"></div>
       <div class="num"><input class="input-conferma in-comm" type="text" inputmode="decimal" value="0,00" aria-label="Commissioni in euro"></div>
       <div class="num" data-costo>—</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   return `
     <section class="card conferma">
       <div class="card-titolo">Conferma acquisto</div>
-      <div class="testo-soft">Controlla per ogni titolo il prezzo a cui hai comprato (precompilato con il prezzo del file), la data e le commissioni pagate.</div>
+      <div class="testo-soft">Controlla per ogni titolo il prezzo a cui hai comprato (precompilato con il prezzo del file), le date, il rateo e le commissioni pagate. Il rateo è una stima: se hai la lettera di conferma della banca, scrivi il rateo che trovi lì.</div>
       ${esclusi > 0 ? `<div class="messaggio messaggio-avviso">${esclusi === 1 ? '1 titolo della bozza non verrà inserito' : esclusi + ' titoli della bozza non verranno inseriti'} (non presenti nel file o non in euro).</div>` : ''}
       <div class="tabella-scroll"><div class="tabella tabella-conferma">
         <div class="riga-testa">
           <div>Titolo</div><div class="num">Nominale</div><div class="num">Prezzo di carico</div>
-          <div>Data acquisto</div><div class="num">Commissioni (€)</div><div class="num">Costo totale (€)</div>
+          <div>Data acquisto</div><div>Data regolamento</div><div class="num">Rateo lordo (€)</div><div class="num">Commissioni (€)</div><div class="num">Totale regolato (€)</div>
         </div>
         ${righe}
       </div></div>
       <div class="conferma-totali">
         <div><span class="testo-soft">Costo dei titoli</span><strong id="c-costo">—</strong></div>
+        <div><span class="testo-soft">Rateo lordo</span><strong id="c-rateo">—</strong></div>
         <div><span class="testo-soft">Commissioni</span><strong id="c-comm">—</strong></div>
-        <div><span class="testo-soft">Totale pagato</span><strong id="c-totale">—</strong></div>
+        <div><span class="testo-soft">Totale regolato</span><strong id="c-totale">—</strong></div>
         <div><span class="testo-soft">Commissioni sul costo dei titoli</span><strong id="c-comm-pct">—</strong></div>
       </div>
       <div class="messaggio messaggio-errore" id="conferma-errore" hidden></div>
       <div class="gruppo-bottoni">
         <button class="btn btn-primario" data-azione="conferma-ok">Conferma acquisto</button>
         <button class="btn btn-secondario" data-azione="conferma-annulla">Annulla</button>
+        <button class="btn btn-secondario" data-azione="conferma-ricalcola">Ricalcola date e ratei</button>
       </div>
-      <div class="nota-tabella">Il costo dei titoli è nominale × prezzo di carico / 100, senza rateo di cedola maturata.</div>
+      <div class="nota-tabella">Il totale regolato è nominale × prezzo di carico / 100 + rateo lordo + commissioni. La data di regolamento proposta è 2 giorni lavorativi dopo l'acquisto (senza festività). Il rateo si calcola sui giorni effettivi del periodo cedolare; è lordo, perché la ritenuta si applica poi solo al periodo in cui hai detenuto il titolo. Se cambi la data di regolamento il rateo si ricalcola, a meno che tu non lo abbia scritto a mano.</div>
     </section>`;
 }
 
 // Aggiorna costo di ogni riga e totali mentre scrivi
 export function aggiornaConferma() {
-  let costo = 0, comm = 0, validi = true;
+  let costo = 0, rateo = 0, comm = 0, validi = true;
   radice.querySelectorAll('.tabella-conferma .riga[data-isin]').forEach(r => {
     const carico = leggiNumero(r.querySelector('.in-carico').value);
+    const ra = leggiNumero(r.querySelector('.in-rateo').value);
     const c = leggiNumero(r.querySelector('.in-comm').value);
     const nominale = Number(r.dataset.nominale);
     const cella = r.querySelector('[data-costo]');
-    if (!(carico > 0) || c === null) { cella.textContent = '—'; validi = false; return; }
-    cella.textContent = fmtNum(nominale * carico / 100 + c);
+    if (!(carico > 0) || ra === null || c === null) { cella.textContent = '—'; validi = false; return; }
+    cella.textContent = fmtNum(nominale * carico / 100 + ra + c);
     costo += nominale * carico / 100;
+    rateo += ra;
     comm += c;
   });
-  if (!validi) { ['c-costo', 'c-comm', 'c-totale', 'c-comm-pct'].forEach(id => set(id, '—')); return; }
+  if (!validi) { ['c-costo', 'c-rateo', 'c-comm', 'c-totale', 'c-comm-pct'].forEach(id => set(id, '—')); return; }
   set('c-costo', fmtNum(costo) + ' €');
+  set('c-rateo', fmtNum(rateo) + ' €');
   set('c-comm', fmtNum(comm) + ' €');
-  set('c-totale', fmtNum(costo + comm) + ' €');
+  set('c-totale', fmtNum(costo + rateo + comm) + ' €');
   set('c-comm-pct', costo > 0 ? fmtNum(comm / costo * 100) + '%' : '—');
+}
+
+// Ricalcola il rateo di una riga dalla data di regolamento scritta (forza = anche se era stato scritto a mano)
+function ricalcolaRateoRiga(riga, forza) {
+  const campo = riga.querySelector('.in-rateo');
+  if (campo.dataset.manuale && !forza) return;
+  const titolo = stato.titoli.find(t => t.isin === riga.dataset.isin);
+  const r = titolo && calcolaRateo(titolo, riga.querySelector('.in-reg').value);
+  if (!r) return;
+  campo.value = fmtNum(Number(riga.dataset.nominale) * r.per100 / 100);
+  delete campo.dataset.manuale;
 }
 
 function mostraErrore(testo) {
@@ -100,17 +126,23 @@ function confermaAcquisto() {
   const righe = Array.from(radice.querySelectorAll('.tabella-conferma .riga[data-isin]'));
   for (const r of righe) {
     const carico = leggiNumero(r.querySelector('.in-carico').value);
+    const rateo = leggiNumero(r.querySelector('.in-rateo').value);
     const comm = leggiNumero(r.querySelector('.in-comm').value);
     const data = r.querySelector('.in-data').value;
+    const reg = r.querySelector('.in-reg').value;
     if (!(carico > 0)) return mostraErrore('Controlla il prezzo di carico: deve essere un numero maggiore di zero.');
+    if (rateo === null) return mostraErrore('Controlla il rateo: scrivi un numero (anche 0).');
     if (comm === null) return mostraErrore('Controlla le commissioni: scrivi un numero (anche 0).');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return mostraErrore('Scegli la data di acquisto di ogni titolo.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(reg)) return mostraErrore('Scegli la data di regolamento di ogni titolo.');
     lotti.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       isin: r.dataset.isin,
       nominale: Number(r.dataset.nominale),
       prezzoCarico: carico,
       data: data,
+      dataRegolamento: reg,
+      rateo: rateo,
       commissioni: comm
     });
   }
@@ -146,6 +178,7 @@ function rigaLotto(l, perIsin) {
     <div class="num">${fmtNum(t.prezzo)}</div>
     <div class="num ${classe}">${variazione === null ? '—' : segno(variazione) + fmtNum(Math.abs(variazione)) + '%'}</div>
     <div class="num">${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
+    <div class="num">${fmtNum(l.rateo || 0)}</div>
     <div class="num">${fmtNum(l.commissioni || 0)}</div>
     ${bottone}</div>`;
 }
@@ -156,7 +189,7 @@ export function htmlCostruito() {
     <div id="avviso-costruito"></div>
 
     <div class="riepilogo riepilogo-acquisti">
-      <div class="card"><div class="testo-soft">Capitale investito</div><div class="valore" id="r-investito"></div><div class="testo-soft" id="r-investito-nota"></div></div>
+      <div class="card"><div class="testo-soft">Capitale investito (valore regolato)</div><div class="valore" id="r-investito"></div><div class="testo-soft" id="r-investito-nota"></div></div>
       <div class="card"><div class="testo-soft">Valore oggi (prezzi del file)</div><div class="valore" id="r-valore"></div></div>
       <div class="card"><div class="testo-soft">Variazione latente dei prezzi</div><div class="valore" id="r-var"></div></div>
       <div class="card"><div class="testo-soft">Commissioni pagate</div><div class="valore" id="r-comm"></div><div class="testo-soft" id="r-comm-nota"></div></div>
@@ -168,11 +201,11 @@ export function htmlCostruito() {
       <div class="tabella-scroll"><div class="tabella tabella-costruito">
         <div class="riga-testa">
           <div>Titolo</div><div>Data acquisto</div><div class="num">Nominale</div><div class="num">Prezzo carico</div>
-          <div class="num">Prezzo oggi</div><div class="num">Var. %</div><div class="num">Valore oggi</div><div class="num">Commissioni</div><div></div>
+          <div class="num">Prezzo oggi</div><div class="num">Var. %</div><div class="num">Valore oggi</div><div class="num">Rateo</div><div class="num">Commissioni</div><div></div>
         </div>
         ${stato.costruito.map(l => rigaLotto(l, perIsin)).join('')}
       </div></div>
-      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. La variazione non comprende rateo di cedola né tasse sulla plusvalenza.</div>
+      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. Il capitale investito è il valore regolato (titoli + rateo lordo + commissioni). La variazione riguarda solo i prezzi e non comprende le tasse sulla plusvalenza.</div>
     </section>
 
     ${htmlPannelloAnalisi()}`;
@@ -188,7 +221,7 @@ export function aggiornaCostruito() {
 
   set('riassunto-costruito', stato.costruito.length + (stato.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' · capitale investito ' + fmtNum(r.capitaleInvestito, 0) + ' €');
   set('r-investito', fmtNum(r.capitaleInvestito, 0) + ' €');
-  set('r-investito-nota', 'titoli ' + fmtNum(r.costoTitoli, 0) + ' € + commissioni ' + fmtNum(r.commissioni, 0) + ' €');
+  set('r-investito-nota', 'titoli ' + fmtNum(r.costoTitoli, 0) + ' € + rateo ' + fmtNum(r.rateo, 0) + ' € + commissioni ' + fmtNum(r.commissioni, 0) + ' €');
   set('r-valore', fmtNum(r.valoreOggi, 0) + ' €');
 
   const elVar = document.getElementById('r-var');
@@ -269,6 +302,15 @@ radice.addEventListener('click', e => {
     case 'conferma-apri': confermando = true; ridisegna(); break;
     case 'conferma-annulla': confermando = false; ridisegna(); break;
     case 'conferma-ok': confermaAcquisto(); break;
+    case 'conferma-ricalcola':
+      radice.querySelectorAll('.tabella-conferma .riga[data-isin]').forEach(riga => {
+        const reg = riga.querySelector('.in-reg');
+        delete reg.dataset.manuale;
+        reg.value = dataRegolamento(riga.querySelector('.in-data').value) || reg.value;
+        ricalcolaRateoRiga(riga, true);
+      });
+      aggiornaConferma();
+      break;
     case 'rimuovi-acquisto':
       impostaCostruito(stato.costruito.filter(l => l.id !== el.dataset.id));
       break;
@@ -281,5 +323,20 @@ radice.addEventListener('click', e => {
 });
 
 radice.addEventListener('input', e => {
-  if (e.target.closest('.tabella-conferma')) aggiornaConferma();
+  const campo = e.target;
+  if (!campo.closest('.tabella-conferma')) return;
+  const riga = campo.closest('.riga[data-isin]');
+  if (riga) {
+    const reg = riga.querySelector('.in-reg');
+    if (campo.classList.contains('in-data') && !reg.dataset.manuale) {
+      reg.value = dataRegolamento(campo.value) || reg.value;
+      ricalcolaRateoRiga(riga, false);
+    } else if (campo.classList.contains('in-reg')) {
+      reg.dataset.manuale = '1';
+      ricalcolaRateoRiga(riga, false);
+    } else if (campo.classList.contains('in-rateo')) {
+      campo.dataset.manuale = '1';
+    }
+  }
+  aggiornaConferma();
 });
