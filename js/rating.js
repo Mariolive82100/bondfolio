@@ -34,3 +34,13 @@ export function etichettaRating(t) {
   if (t.ratingMoodys && MAPPA[t.ratingMoodys]) return t.ratingMoodys;
   return '—';
 }
+
+// Numero (anche con decimali) -> rating S&P più vicino: 4.2 -> "AA-"
+const SCALA_SP = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-',
+  'BB+', 'BB', 'BB-', 'B+', 'B', 'B-', 'CCC+', 'CCC', 'CCC-'];
+
+export function etichettaDaOrdinale(n) {
+  if (n === null || n === undefined) return '—';
+  const i = Math.min(SCALA_SP.length, Math.max(1, Math.round(n)));
+  return SCALA_SP[i - 1];
+}

@@ -1,7 +1,8 @@
 // Calcoli sul portafoglio (nessuna grafica): usati dalla schermata Portafoglio
 // e, più avanti, dalla schermata Analisi.
 
-import { cedolaNetta } from './filtri.js';
+import { cedolaNetta, tipoEmittente } from './filtri.js';
+import { ordinaleTitolo } from './rating.js';
 
 // Il portafoglio accetta solo titoli in questa valuta
 export const VALUTA_PORTAFOGLIO = 'EUR';
@@ -58,6 +59,45 @@ export function calcolaTotali(posizioni) {
     rendNetto: mediaPonderata(posizioni, 'rendNetto'),
     duration: mediaPonderata(posizioni, 'durationLorda'),
     nominale: nominale, cedoleAnnue: cedoleAnnue, cedoleNette: cedoleNette, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
+}
+
+// Altri indicatori del riepilogo. dataRif = data di riferimento del file ("aaaa-mm-gg"), se manca si usa oggi.
+// - scadenzaAnni, cedolaNetta, ratingOrdinale: medie ponderate per controvalore
+// - quote: peso sul nominale di governativi, sovranazionali, societari (in %)
+// - ratingConteggio: quanti titoli hanno un rating (gli altri non entrano nella media)
+export function calcolaIndicatori(posizioni, dataRif) {
+  const riferimento = dataRif ? new Date(dataRif + 'T00:00:00') : new Date();
+  let sScad = 0, pScad = 0, sCed = 0, pCed = 0, sRat = 0, pRat = 0, nRat = 0, nominale = 0, validi = 0;
+  const perTipo = { gov: 0, sov: 0, corp: 0 };
+
+  posizioni.forEach(p => {
+    if (!p.valida) return;
+    const t = p.titolo;
+    validi += 1;
+    nominale += p.nominale;
+    perTipo[tipoEmittente(t)] += p.nominale;
+
+    if (t.scadenza) {
+      const anni = (new Date(t.scadenza + 'T00:00:00') - riferimento) / (365.25 * 24 * 3600 * 1000);
+      sScad += anni * p.controvalore;
+      pScad += p.controvalore;
+    }
+    sCed += (cedolaNetta(t) || 0) * p.controvalore;
+    pCed += p.controvalore;
+
+    const r = ordinaleTitolo(t);
+    if (r !== null) { sRat += r * p.controvalore; pRat += p.controvalore; nRat += 1; }
+  });
+
+  const pct = x => (nominale > 0 ? x / nominale * 100 : null);
+  return {
+    scadenzaAnni: pScad > 0 ? sScad / pScad : null,
+    cedolaNetta: pCed > 0 ? sCed / pCed : null,
+    ratingOrdinale: pRat > 0 ? sRat / pRat : null,
+    ratingConteggio: nRat,
+    titoliValidi: validi,
+    quote: { gov: pct(perTipo.gov), sov: pct(perTipo.sov), corp: pct(perTipo.corp) }
+  };
 }
 
 // Peso percentuale sul nominale totale dei titoli validi

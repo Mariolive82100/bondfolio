@@ -1,9 +1,10 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
 import { stato, impostaBozza } from './state.js';
-import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, incassiMensili } from './portafoglio-calcoli.js';
+import { risolviPosizioni, calcolaTotali, calcolaIndicatori, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, incassiMensili } from './portafoglio-calcoli.js';
 import { graficoColonne, graficoBarre, graficoVuoto } from './grafici.js';
 import { cedolaNetta } from './filtri.js';
+import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, fmtData, leggiDecimale, NOMI_MESI } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
@@ -115,6 +116,10 @@ function disegna() {
         <div class="card"><div class="testo-soft">Rendimento lordo</div><div class="valore" id="t-rend-lordo"></div></div>
         <div class="card"><div class="testo-soft">Rendimento netto</div><div class="valore" id="t-rend-netto"></div></div>
         <div class="card"><div class="testo-soft">Duration</div><div class="valore" id="t-duration"></div></div>
+        <div class="card"><div class="testo-soft">Scadenza media</div><div class="valore" id="t-scadenza"></div></div>
+        <div class="card"><div class="testo-soft">Cedola media netta</div><div class="valore" id="t-cedola-media"></div></div>
+        <div class="card"><div class="testo-soft">Rating medio</div><div class="valore" id="t-rating"></div><div class="testo-soft" id="t-rating-nota"></div></div>
+        <div class="card"><div class="testo-soft">Governativi / Sovranaz. / Societari</div><div class="valore" id="t-quote"></div></div>
       </div>
 
       <div class="grafici">
@@ -164,6 +169,14 @@ function aggiornaNumeri() {
   set('t-rend-lordo', tot.rendLordo === null ? '—' : fmtNum(tot.rendLordo) + '%');
   set('t-rend-netto', tot.rendNetto === null ? '—' : fmtNum(tot.rendNetto) + '%');
   set('t-duration', tot.duration === null ? '—' : fmtNum(tot.duration, 1) + ' anni');
+  const ind = calcolaIndicatori(posizioni, stato.meta && stato.meta.dataRiferimento);
+  set('t-scadenza', ind.scadenzaAnni === null ? '—' : fmtNum(ind.scadenzaAnni, 1) + ' anni');
+  set('t-cedola-media', ind.cedolaNetta === null ? '—' : fmtNum(ind.cedolaNetta) + '%');
+  set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
+  set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
+    ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
+  set('t-quote', ind.quote.gov === null ? '—'
+    : fmtNum(ind.quote.gov, 0) + ' / ' + fmtNum(ind.quote.sov, 0) + ' / ' + fmtNum(ind.quote.corp, 0) + ' %');
   aggiornaGrafici(posizioni);
 
   set('avviso-escluse', tot.escluse === 1
