@@ -16,9 +16,13 @@ export const IMPOSTAZIONI_INIZIALI = {
   maxEmittente: 20,      // peso massimo per emittente (%)
   scelta: 'rendimento',  // 'rendimento' oppure 'efficiente'
   pesi: 'uguali',        // 'uguali' oppure 'rendimento'
-  flusso: 'normale'      // 'normale' oppure 'regolare' (cedole mensili il più possibile simili)
+  mesi: [],              // mesi di incasso scelti (1 = gennaio ... 12); vuoto = indifferente
+  importi: 'qualsiasi'   // 'qualsiasi' oppure 'regolari' (cedole simili tra i mesi di incasso)
 };
 
+export const NOMI_MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
+const TUTTI_I_MESI = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const lotto = t => t.lottoMinimo || 1000;
 const costoLotto = t => lotto(t) * t.prezzo / 100;
 const chiaveEmittente = t => t.emittenteCodice || t.emittente;
@@ -29,15 +33,19 @@ export function costruisci(lista, imp) {
   const quota = capitale / N;
   const punteggio = t => (imp.scelta === 'efficiente' ? efficienza(t) : t.rendNetto);
 
+  // Mesi di incasso scelti: restano solo i titoli che pagano cedole soltanto in quei mesi
+  const target = (imp.mesi && imp.mesi.length) ? imp.mesi : null;
   const candidati = lista
     .filter(t => t.valuta === VALUTA_PORTAFOGLIO && t.prezzo > 0 && t.rendNetto > 0 &&
                  punteggio(t) !== null && costoLotto(t) <= quota)
+    .filter(t => !target || (t.mesiCedola && t.mesiCedola.length > 0 && t.mesiCedola.every(m => target.includes(m))))
     .sort((a, b) => punteggio(b) - punteggio(a));
 
   // Scelta dei titoli, con limite per emittente
   const maxPerEmittente = Math.max(1, Math.floor(N * imp.maxEmittente / 100));
-  const scelti = imp.flusso === 'regolare'
-    ? scegliRegolare(candidati, N, maxPerEmittente, quota)
+  const regolari = imp.importi === 'regolari';
+  const scelti = (target || regolari)
+    ? scegliPerMesi(candidati, N, maxPerEmittente, quota, target || TUTTI_I_MESI, regolari)
     : scegliPerPunteggio(candidati, N, maxPerEmittente);
 
   if (scelti.length === 0) {
@@ -112,21 +120,23 @@ export function cedoleMensili(bozza, perIsin) {
   return mesi;
 }
 
-// Scarto relativo tra i mesi: 0 = tutti i mesi uguali
-function irregolarita(mesi) {
-  const media = mesi.reduce((s, x) => s + x, 0) / 12;
+// Scarto relativo tra gli importi dei mesi indicati: 0 = tutti uguali, un mese senza cedole pesa molto
+function irregolarita(mesi, target) {
+  const valori = target.map(m => mesi[m - 1]);
+  const media = valori.reduce((s, x) => s + x, 0) / valori.length;
   if (media === 0) return Infinity;
-  const varianza = mesi.reduce((s, x) => s + (x - media) * (x - media), 0) / 12;
+  const varianza = valori.reduce((s, x) => s + (x - media) * (x - media), 0) / valori.length;
   return Math.sqrt(varianza) / media;
 }
 
-// Sceglie, tra i titoli meglio piazzati, quelli che messi insieme rendono più uniformi
-// le cedole dei 12 mesi (si assume lo stesso importo su ogni titolo).
-function scegliRegolare(candidati, N, maxPerEmittente, quota) {
-  const pool = candidati
-    .filter(t => t.mesiCedola && t.mesiCedola.length > 0 && t.cedola > 0)
-    .slice(0, Math.max(5 * N, 50));
+// Sceglie i titoli in base ai mesi in cui pagano le cedole (si assume lo stesso importo su ogni titolo):
+// - importi "qualsiasi": prima si coprono i mesi di incasso, poi si prendono i titoli meglio piazzati
+// - importi "regolari": si sceglie ogni volta il titolo che rende più uniformi i mesi di incasso
+function scegliPerMesi(candidati, N, maxPerEmittente, quota, target, regolari) {
+  const valide = candidati.filter(t => t.mesiCedola && t.mesiCedola.length > 0 && t.cedola > 0);
+  const pool = regolari ? valide.slice(0, Math.max(8 * N, 80)) : valide;
   const somma = new Array(12).fill(0);
+  const coperti = new Set();
   const conta = new Map();
   const scelti = [];
 
@@ -135,11 +145,17 @@ function scegliRegolare(candidati, N, maxPerEmittente, quota) {
     for (const t of pool) {
       if (scelti.includes(t)) continue;
       if ((conta.get(chiaveEmittente(t)) || 0) >= maxPerEmittente) continue;
-      const prova = somma.slice();
-      const perCedola = quota * t.cedola / t.prezzo / t.mesiCedola.length;
-      t.mesiCedola.forEach(m => { prova[m - 1] += perCedola; });
-      const valore = irregolarita(prova);
-      // a parità di regolarità vince il titolo meglio piazzato (viene prima nella lista)
+
+      let valore;
+      if (regolari) {
+        const prova = somma.slice();
+        const perCedola = quota * t.cedola / t.prezzo / t.mesiCedola.length;
+        t.mesiCedola.forEach(m => { prova[m - 1] += perCedola; });
+        valore = irregolarita(prova, target);
+      } else {
+        valore = -t.mesiCedola.filter(m => target.includes(m) && !coperti.has(m)).length;
+      }
+      // a parità vince il titolo meglio piazzato (viene prima nella lista)
       if (valore < migliorValore - 1e-9) { migliorValore = valore; migliore = t; }
     }
     if (!migliore) break;
@@ -147,7 +163,7 @@ function scegliRegolare(candidati, N, maxPerEmittente, quota) {
     const k = chiaveEmittente(migliore);
     conta.set(k, (conta.get(k) || 0) + 1);
     const perCedola = quota * migliore.cedola / migliore.prezzo / migliore.mesiCedola.length;
-    migliore.mesiCedola.forEach(m => { somma[m - 1] += perCedola; });
+    migliore.mesiCedola.forEach(m => { somma[m - 1] += perCedola; coperti.add(m); });
   }
   return scelti;
 }

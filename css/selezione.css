@@ -97,4 +97,7 @@
 .costruttore .messaggio { margin-top: 0; }
 .messaggio-ok { background: #E3F1ED; color: #0B5A4A; }
 
-.preset-gruppo { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--bordo); }
+
+.chips-mesi { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chips-mesi .chip-preset { height: 30px; padding: 0 10px; }
+.costruttore .campo > span small { font-weight: 400; }

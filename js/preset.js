@@ -102,25 +102,3 @@ export function riduciPerEmittente(titoliOrdinati) {
     return true;
   });
 }
-
-/* ---------- Flusso delle cedole ---------- */
-
-export const FLUSSI = [
-  { freq: 12, nome: 'Mensile' },
-  { freq: 4, nome: 'Trimestrale' },
-  { freq: 2, nome: 'Semestrale' },
-  { freq: 1, nome: 'Annuale' }
-];
-
-// Quante cedole all'anno paga il titolo (0 = nessuna / non indicato).
-// Si conta dai mesi di pagamento del file; se mancano si usa la periodicità.
-export function frequenzaCedole(t) {
-  const n = t.mesiCedola ? t.mesiCedola.length : 0;
-  return n || t.periodicita || 0;
-}
-
-// Più frequenze scelte = basta una di esse (OR). Nessuna scelta = indifferente.
-export function filtraPerFlusso(titoli, frequenze) {
-  if (!frequenze || frequenze.size === 0) return titoli;
-  return titoli.filter(t => frequenze.has(frequenzaCedole(t)));
-}
