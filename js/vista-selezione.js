@@ -1,26 +1,17 @@
 // Schermata 2: filtri e tabella delle obbligazioni
 
-import { stato, impostaBozza, impostaImpostazioni } from './state.js';
-import { costruisci } from './costruttore.js';
+import { stato, impostaBozza } from './state.js';
 import { FILTRI_INIZIALI, applicaFiltri, ordina } from './filtri.js';
 import { ordinaleTitolo, etichettaRating } from './rating.js';
-import { esc, fmtNum, fmtData, leggiEuro } from './formati.js';
+import { esc, fmtNum, fmtData, NOMI_MESI } from './formati.js';
 import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
-import { PRESET, nomePreset, eSoglia, calcolaSoglie, passaPreset, applicaPreset, riduciPerEmittente } from './preset.js';
-import { NOMI_MESI } from './costruttore.js';
 
 const radice = document.getElementById('view-selezione');
 const PASSO = 100; // righe mostrate alla volta
 
-let filtri = Object.assign({}, FILTRI_INIZIALI);
+let filtri = Object.assign({}, FILTRI_INIZIALI, { mesi: [] });
 let ordine = { campo: 'rendNetto', verso: -1 };
 let visibili = PASSO;
-let presetAttivi = new Set();   // preset scelti (si combinano in AND)
-let soglie = null;              // fasce dei preset, calcolate sui titoli del file
-let soglieSu = null;
-let costruttoreAperto = false; // pannello "Costruisci portafoglio"
-let esitoCostruzione = '';     // messaggio dopo la costruzione (html già protetto)
-let ultimaLista = [];          // titoli oggi in tabella (filtri + preset + ordine), base della costruzione
 
 const COLONNE = [
   { campo: 'nome', titolo: 'Titolo', verso: 1 },
@@ -117,6 +108,16 @@ function disegna() {
             <option value="sub">Solo subordinati</option>
           </select>
         </label>
+
+        <div class="campo"><span>Mesi di cedola</span>
+          <div class="chips-mesi" id="chips-mesi">${NOMI_MESI.map((nome, i) =>
+            `<button type="button" class="chip-mese" data-mese="${i + 1}" aria-pressed="false">${nome}</button>`).join('')}</div>
+          <select id="f-mesiRegola" aria-label="Regola sui mesi">
+            <option value="solo">Paga solo in questi mesi</option>
+            <option value="almeno">Paga in almeno uno di questi mesi</option>
+          </select>
+          <small class="nota">Nessun mese scelto = tutti i titoli.</small>
+        </div>
       </section>
 
       <section class="card tabella-card">
@@ -124,8 +125,6 @@ function disegna() {
           <div id="conteggio"></div>
           <div id="bozza-info" class="bozza-info"></div>
         </div>
-        <div class="preset-barra" id="preset-barra"></div>
-        <div class="costruttore" id="costruttore" hidden></div>
         <div class="tabella-scroll"><div class="tabella" id="tabella"></div></div>
         <div class="tabella-piede" id="piede"></div>
       </section>
@@ -138,7 +137,7 @@ function disegna() {
     if (campo) campo.value = filtri[chiave];
   });
 
-  disegnaCostruttore();
+  aggiornaChipMesi();
   aggiornaTabella();
 }
 
@@ -184,144 +183,19 @@ function intestazione() {
   return `<div class="riga-testa">${celle}<div></div></div>`;
 }
 
-/* ---------- Costruzione automatica ---------- */
-
-function disegnaCostruttore() {
-  const box = document.getElementById('costruttore');
-  if (!box) return;
-  box.hidden = !costruttoreAperto;
-  if (!costruttoreAperto) { box.innerHTML = ''; return; }
-
-  const imp = stato.impostazioni;
-  box.innerHTML = `
-    <div class="costruttore-campi">
-      <label class="campo"><span>Capitale (€)</span>
-        <input id="c-capitale" inputmode="numeric" placeholder="es. 50.000" value="${imp.capitale ? fmtNum(imp.capitale, 0) : ''}">
-      </label>
-      <label class="campo"><span>N. titoli</span>
-        <input id="c-numero" inputmode="numeric" value="${imp.numero}">
-      </label>
-      <label class="campo"><span>Max per emittente (%)</span>
-        <input id="c-maxEmittente" inputmode="numeric" value="${imp.maxEmittente}">
-      </label>
-      <label class="campo"><span>Scelta dei titoli</span>
-        <select id="c-scelta">
-          <option value="rendimento" ${imp.scelta === 'rendimento' ? 'selected' : ''}>Rendimento netto</option>
-          <option value="efficiente" ${imp.scelta === 'efficiente' ? 'selected' : ''}>Rendimento efficiente</option>
-        </select>
-      </label>
-      <label class="campo"><span>Pesi</span>
-        <select id="c-pesi">
-          <option value="uguali" ${imp.pesi === 'uguali' ? 'selected' : ''}>Uguali</option>
-          <option value="rendimento" ${imp.pesi === 'rendimento' ? 'selected' : ''}>Proporzionali al rendimento</option>
-        </select>
-      </label>
-      <label class="campo"><span>Importi delle cedole</span>
-        <select id="c-importi">
-          <option value="qualsiasi" ${imp.importi !== 'regolari' ? 'selected' : ''}>Qualsiasi</option>
-          <option value="regolari" ${imp.importi === 'regolari' ? 'selected' : ''}>Simili tra i mesi</option>
-        </select>
-      </label>
-      <button class="btn btn-primario" data-azione="costruisci">Costruisci</button>
-    </div>
-    <div class="campo">
-      <span>Mesi di incasso <small class="nota">— nessun mese scelto = indifferente; con dei mesi scelti uso solo titoli che pagano cedole in quei mesi e cerco di coprirli tutti</small></span>
-      <div class="chips-mesi">${NOMI_MESI.map((nome, i) =>
-        `<button type="button" class="chip-preset ${(imp.mesi || []).includes(i + 1) ? 'is-attivo' : ''}" data-mese="${i + 1}" aria-pressed="${(imp.mesi || []).includes(i + 1)}">${nome}</button>`).join('')}
-        ${(imp.mesi || []).length > 0 ? '<button class="link-btn" data-azione="togli-mesi">Togli i mesi</button>' : ''}
-      </div>
-    </div>
-    <small class="nota">Parte dai titoli che vedi ora in tabella (filtri e preset inclusi) e sostituisce la bozza attuale.</small>
-    <div id="costruttore-esito">${esitoCostruzione}</div>`;
-}
-
-function eseguiCostruzione() {
-  const imp = stato.impostazioni;
-  if (!(imp.capitale > 0)) {
-    esitoCostruzione = '<div class="messaggio messaggio-errore">Inserisci prima il capitale disponibile.</div>';
-    disegnaCostruttore();
-    return;
-  }
-
-  const r = costruisci(ultimaLista, imp);
-  if (r.trovati === 0) {
-    const nota = (imp.mesi && imp.mesi.length) ? ' Con i mesi scelti restano solo i titoli che pagano cedole soltanto in quei mesi: prova ad aggiungerne altri.' : '';
-    esitoCostruzione = '<div class="messaggio messaggio-avviso">Nessun titolo adatto: servono titoli in euro con rendimento positivo e un lotto che costi al massimo capitale ÷ numero di titoli. Prova ad allargare i filtri o i preset, o a ridurre il numero di titoli.' + nota + '</div>';
-    disegnaCostruttore();
-    return;
-  }
-
-  impostaBozza(r.bozza);
-  const euro = n => fmtNum(n, 0) + ' €';
-  let testo = `Bozza sostituita: <strong>${r.trovati}</strong> titoli. Capitale impiegato <strong>${euro(r.impiegato)}</strong> su ${euro(imp.capitale)}, liquidità residua <strong>${euro(r.residuo)}</strong>. Peso massimo per emittente: ${fmtNum(r.pesoMaxEmittente, 1)}%.`;
-  // Mesi di incasso: quelli scelti, oppure tutti e 12
-  const scelti = (imp.mesi && imp.mesi.length) ? imp.mesi : NOMI_MESI.map((n, i) => i + 1);
-  const valori = scelti.map(m => r.mensili[m - 1]);
-  const scoperti = scelti.filter(m => r.mensili[m - 1] < 0.005);
-  testo += ` Cedole lorde ${imp.mesi && imp.mesi.length ? 'nei mesi scelti' : 'mensili'}: da <strong>${euro(Math.min(...valori))}</strong> a <strong>${euro(Math.max(...valori))}</strong>` +
-    (scoperti.length > 0 ? ` (nessuna cedola in: ${scoperti.map(m => NOMI_MESI[m - 1]).join(', ')})` : '') + '.';
-  const note = [];
-  if (imp.mesi && imp.mesi.length && scoperti.length > 0) {
-    note.push('Non sono riuscito a coprire tutti i mesi scelti: prova ad aumentare il numero di titoli, ad allargare i filtri o a togliere qualche mese.');
-  }
-  if (r.trovati < r.richiesti) note.push(`Ne ho trovati solo ${r.trovati} su ${r.richiesti} richiesti (limite per emittente, capitale o filtri troppo stretti).`);
-  if (r.pesoMaxEmittente > imp.maxEmittente + 1) note.push(`Il peso massimo per emittente supera il limite del ${imp.maxEmittente}%.`);
-  esitoCostruzione = `<div class="messaggio messaggio-ok">${testo}</div>` +
-    (note.length ? `<div class="messaggio messaggio-avviso">${note.join(' ')}</div>` : '');
-  disegnaCostruttore();
-}
-
-/* ---------- Preset ---------- */
-
-function disegnaPreset(base, idSoglia, trovati) {
-  const barra = document.getElementById('preset-barra');
-  if (!barra) return;
-
-  const chips = PRESET.map(p => {
-    const attivo = presetAttivi.has(p.id);
-    let conto = '';
-    let vuoto = false;
-    if (p.tipo === 'soglia') {
-      const n = base.filter(t => passaPreset(p.id, t, soglie)).length;
-      conto = ` <span class="chip-n">${n}</span>`;
-      vuoto = n === 0 && !attivo;
-    }
-    return `<button class="chip-preset ${attivo ? 'is-attivo' : ''} ${vuoto ? 'is-vuoto' : ''}"
-      data-preset="${p.id}" title="${esc(p.info)}" aria-pressed="${attivo}">${esc(p.nome)}${conto}</button>`;
-  }).join('');
-
-  const togli = presetAttivi.size > 0
-    ? '<button class="link-btn" data-azione="togli-preset">Togli i preset</button>' : '';
-
-  let avviso = '';
-  if (idSoglia.length > 0 && trovati === 0) {
-    // Cerco quale preset, tolto, fa tornare dei risultati
-    const aiuti = idSoglia
-      .map(id => ({ id: id, n: applicaPreset(base, idSoglia.filter(x => x !== id), soglie).length }))
-      .filter(x => x.n > 0)
-      .map(x => `togliendo «${esc(nomePreset(x.id))}» ottieni ${x.n.toLocaleString('it-IT')} titoli`);
-    avviso = `<div class="preset-avviso">Nessun titolo rispetta questa combinazione.` +
-      (idSoglia.length > 1 && aiuti.length > 0 ? ' Prova così: ' + aiuti.join('; ') + '.' : '') + '</div>';
-  }
-
-  barra.innerHTML = `<span class="preset-titolo">Preset</span>${chips}${togli}${avviso}`;
+function aggiornaChipMesi() {
+  radice.querySelectorAll('.chip-mese').forEach(b => {
+    const attivo = filtri.mesi.includes(Number(b.dataset.mese));
+    b.classList.toggle('is-attivo', attivo);
+    b.setAttribute('aria-pressed', String(attivo));
+  });
 }
 
 function aggiornaTabella() {
   const contenitore = document.getElementById('tabella');
   if (!contenitore) return;
 
-  if (soglieSu !== stato.titoli) { soglie = calcolaSoglie(stato.titoli); soglieSu = stato.titoli; }
-
-  const base = applicaFiltri(stato.titoli, filtri);
-  const idSoglia = Array.from(presetAttivi).filter(eSoglia);
-  const dopoPreset = applicaPreset(base, idSoglia, soglie);
-  let filtrati = ordina(dopoPreset, ordine);
-  if (presetAttivi.has('emittente')) filtrati = riduciPerEmittente(filtrati);
-
-  ultimaLista = filtrati;
-
-  disegnaPreset(base, idSoglia, dopoPreset.length);
+  const filtrati = ordina(applicaFiltri(stato.titoli, filtri), ordine);
   const mostrati = filtrati.slice(0, visibili);
   const inBozza = new Set(stato.bozza.map(b => b.isin));
 
@@ -331,7 +205,6 @@ function aggiornaTabella() {
   document.getElementById('bozza-info').innerHTML =
     `<span class="testo-soft">Nel portafoglio: <strong>${stato.bozza.length}</strong></span>
      ${stato.bozza.length > 0 ? '<button class="link-btn" data-azione="svuota">Svuota</button>' : ''}
-     <button class="btn ${costruttoreAperto ? 'btn-secondario' : 'btn-primario'} btn-piccolo" data-azione="costruttore">Costruisci portafoglio</button>
      <button class="btn btn-secondario btn-piccolo" data-azione="vai-portafoglio">Vai al portafoglio</button>`;
 
   contenitore.innerHTML = intestazione() +
@@ -356,46 +229,16 @@ radice.addEventListener('input', e => {
   }
 });
 
-// Campi del pannello di costruzione (id che iniziano con "c-")
-radice.addEventListener('change', e => {
-  const id = e.target.id;
-  if (!id || id.indexOf('c-') !== 0) return;
-  const chiave = id.slice(2);
-  const v = e.target.value;
-
-  if (chiave === 'capitale') {
-    const n = leggiEuro(v);
-    impostaImpostazioni({ capitale: n });
-    e.target.value = n === null ? '' : fmtNum(n, 0);
-  } else if (chiave === 'numero' || chiave === 'maxEmittente') {
-    const [min, max, predefinito] = chiave === 'numero' ? [1, 50, 10] : [5, 100, 20];
-    let n = parseInt(String(v).replace(/\D/g, ''), 10);
-    if (Number.isNaN(n)) n = predefinito;
-    n = Math.min(max, Math.max(min, n));
-    impostaImpostazioni({ [chiave]: n });
-    e.target.value = n;
-  } else {
-    impostaImpostazioni({ [chiave]: v });
-  }
-});
-
 radice.addEventListener('click', e => {
-  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-preset], [data-mese]');
+  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-mese]');
   if (!el) return;
 
   if (el.dataset.mese) {
     const m = Number(el.dataset.mese);
-    const mesi = new Set(stato.impostazioni.mesi || []);
-    if (mesi.has(m)) mesi.delete(m); else mesi.add(m);
-    impostaImpostazioni({ mesi: Array.from(mesi).sort((a, b) => a - b) });
-    disegnaCostruttore();
-    return;
-  }
-
-  if (el.dataset.preset) {
-    const id = el.dataset.preset;
-    if (presetAttivi.has(id)) presetAttivi.delete(id); else presetAttivi.add(id);
+    // creo sempre una nuova lista: l'elenco iniziale dei filtri non va mai modificato
+    filtri.mesi = filtri.mesi.includes(m) ? filtri.mesi.filter(x => x !== m) : filtri.mesi.concat([m]);
     visibili = PASSO;
+    aggiornaChipMesi();
     aggiornaTabella();
     return;
   }
@@ -430,25 +273,8 @@ radice.addEventListener('click', e => {
         impostaBozza([]);
       }
       break;
-    case 'costruttore':
-      costruttoreAperto = !costruttoreAperto;
-      disegnaCostruttore();
-      aggiornaTabella();
-      break;
-    case 'costruisci':
-      eseguiCostruzione();
-      break;
-    case 'togli-mesi':
-      impostaImpostazioni({ mesi: [] });
-      disegnaCostruttore();
-      break;
-    case 'togli-preset':
-      presetAttivi = new Set();
-      visibili = PASSO;
-      aggiornaTabella();
-      break;
     case 'azzera':
-      filtri = Object.assign({}, FILTRI_INIZIALI);
+      filtri = Object.assign({}, FILTRI_INIZIALI, { mesi: [] });
       visibili = PASSO;
       disegna();
       break;
@@ -462,14 +288,6 @@ radice.addEventListener('click', e => {
     case 'vai-portafoglio':
       document.dispatchEvent(new CustomEvent('vai-a', { detail: 'portafoglio' }));
       break;
-  }
-});
-
-// Il capitale può cambiare anche dalla schermata Portafoglio
-document.addEventListener('impostazioni-aggiornate', () => {
-  const campo = document.getElementById('c-capitale');
-  if (campo && document.activeElement !== campo) {
-    campo.value = stato.impostazioni.capitale ? fmtNum(stato.impostazioni.capitale, 0) : '';
   }
 });
 

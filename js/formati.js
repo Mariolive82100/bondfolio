@@ -28,3 +28,5 @@ export function leggiEuro(testo) {
   const n = parseFloat(pulito);
   return Number.isNaN(n) || n <= 0 ? null : Math.round(n);
 }
+
+export const NOMI_MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];

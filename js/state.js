@@ -1,14 +1,13 @@
 // Dati condivisi tra le schermate (restano in memoria finché la pagina è aperta)
 
 import { caricaBozza, salvaBozza, caricaImpostazioni, salvaImpostazioni } from './archivio.js';
-import { IMPOSTAZIONI_INIZIALI } from './costruttore.js';
 
 export const stato = {
   titoli: [],              // elenco obbligazioni letto dal file
   meta: null,              // informazioni sul file (nome, data, numero titoli...)
   bozza: caricaBozza(),    // titoli scelti per il portafoglio: [{ isin, nominale }]
-  // capitale disponibile e parametri di costruzione automatica
-  impostazioni: Object.assign({}, IMPOSTAZIONI_INIZIALI, caricaImpostazioni())
+  // capitale disponibile (si scrive nella schermata Portafoglio)
+  impostazioni: Object.assign({ capitale: null }, caricaImpostazioni())
 };
 
 export function impostaDati(titoli, meta) {

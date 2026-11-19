@@ -12,7 +12,9 @@ export const FILTRI_INIZIALI = {
   cedolaMin: '',
   cedolaMax: '',
   rating: '',      // numero massimo accettato (1 = AAA ... 10 = BBB-)
-  grado: ''        // '' = tutti, 'senior', 'sub' = subordinati
+  grado: '',       // '' = tutti, 'senior', 'sub' = subordinati
+  mesi: [],        // mesi di pagamento della cedola (1 = gennaio ... 12); vuoto = tutti
+  mesiRegola: 'solo' // 'solo' = paga solo in quei mesi, 'almeno' = paga in almeno uno di quei mesi
 };
 
 export function tipoEmittente(t) {
@@ -59,6 +61,16 @@ export function applicaFiltri(titoli, f) {
 
     if (f.grado === 'senior' && t.grado !== 'Senior') return false;
     if (f.grado === 'sub' && t.grado === 'Senior') return false;
+
+    const mesi = f.mesi || [];
+    if (mesi.length > 0) {
+      if (!t.mesiCedola || t.mesiCedola.length === 0) return false;
+      if (f.mesiRegola === 'almeno') {
+        if (!t.mesiCedola.some(m => mesi.includes(m))) return false;
+      } else if (!t.mesiCedola.every(m => mesi.includes(m))) {
+        return false;
+      }
+    }
 
     return true;
   });
