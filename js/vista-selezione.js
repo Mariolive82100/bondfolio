@@ -1,7 +1,7 @@
 // Schermata 2: filtri e tabella delle obbligazioni
 
 import { stato, impostaBozza } from './state.js';
-import { nuoviFiltri, applicaFiltri, ordina } from './filtri.js';
+import { nuoviFiltri, applicaFiltri, ordina, cedolaNetta, aliquota } from './filtri.js';
 import { ordinaleTitolo, etichettaRating } from './rating.js';
 import { esc, fmtNum, fmtData, NOMI_MESI } from './formati.js';
 import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
@@ -17,7 +17,8 @@ const COLONNE = [
   { campo: 'nome', titolo: 'Titolo', verso: 1 },
   { campo: 'emittente', titolo: 'Emittente', verso: 1 },
   { campo: 'scadenza', titolo: 'Scadenza', verso: 1 },
-  { campo: 'cedola', titolo: 'Cedola', verso: -1, num: true },
+  { campo: 'cedolaNetta', titolo: 'Cedola netta', verso: -1, num: true },
+  { campo: 'aliquota', titolo: 'Aliquota', verso: 1, num: true },
   { campo: 'prezzo', titolo: 'Prezzo', verso: -1, num: true },
   { campo: 'rendNetto', titolo: 'Rend. netto', verso: -1, num: true },
   { campo: 'durationLorda', titolo: 'Duration', verso: -1, num: true },
@@ -82,10 +83,10 @@ function disegna() {
           <input id="f-rendMin" inputmode="decimal" placeholder="es. 2,5">
         </label>
 
-        <div class="campo"><span>Cedola (%)</span>
+        <div class="campo"><span>Cedola netta (%)</span>
           <div class="coppia">
-            <input id="f-cedolaMin" inputmode="decimal" placeholder="Min" aria-label="Cedola minima">
-            <input id="f-cedolaMax" inputmode="decimal" placeholder="Max" aria-label="Cedola massima">
+            <input id="f-cedolaMin" inputmode="decimal" placeholder="Min" aria-label="Cedola netta minima">
+            <input id="f-cedolaMax" inputmode="decimal" placeholder="Max" aria-label="Cedola netta massima">
           </div>
         </div>
 
@@ -165,7 +166,8 @@ function riga(t, inBozza) {
       </div>
       <div class="ellissi" title="${esc(t.emittente)}">${esc(t.emittente)}</div>
       <div>${fmtData(t.scadenza)}</div>
-      <div class="num">${fmtNum(t.cedola)}%</div>
+      <div class="num forte">${fmtNum(cedolaNetta(t))}%</div>
+      <div class="num"><span class="pill ${aliquota(t) < 20 ? 'pill-ok' : 'pill-medio'}">${String(aliquota(t)).replace('.', ',')}%</span></div>
       <div class="num">${fmtNum(t.prezzo)}</div>
       <div class="num forte">${fmtNum(t.rendNetto)}%</div>
       <div class="num">${fmtNum(t.durationLorda, 1)}</div>

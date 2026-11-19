@@ -28,6 +28,21 @@ export function tipoEmittente(t) {
   return 'corp';
 }
 
+// Aliquota sulle cedole: 12,5% per governativi e sovranazionali, 26% per i societari.
+// (Semplificazione: non distingue i governativi di Paesi fuori dalla white list, tassati al 26%)
+export const ALIQUOTA_AGEVOLATA = 12.5;
+export const ALIQUOTA_ORDINARIA = 26;
+
+export function aliquota(t) {
+  return tipoEmittente(t) === 'corp' ? ALIQUOTA_ORDINARIA : ALIQUOTA_AGEVOLATA;
+}
+
+// Cedola al netto delle tasse, in percentuale (3,00 con aliquota 12,5% -> 2,625)
+export function cedolaNetta(t) {
+  if (t.cedola === null || t.cedola === undefined) return null;
+  return t.cedola * (1 - aliquota(t) / 100);
+}
+
 // "2,5" -> 2.5 ; vuoto o non valido -> null
 function num(testo) {
   if (testo === undefined || testo === null || String(testo).trim() === '') return null;
@@ -56,8 +71,9 @@ export function applicaFiltri(titoli, f) {
     if (annoA !== null && (anno === null || anno > annoA)) return false;
 
     if (rendMin !== null && (t.rendNetto === null || t.rendNetto < rendMin)) return false;
-    if (cedolaMin !== null && (t.cedola === null || t.cedola < cedolaMin)) return false;
-    if (cedolaMax !== null && (t.cedola === null || t.cedola > cedolaMax)) return false;
+    const netta = cedolaNetta(t);
+    if (cedolaMin !== null && (netta === null || netta < cedolaMin)) return false;
+    if (cedolaMax !== null && (netta === null || netta > cedolaMax)) return false;
 
     if (rating !== null) {
       const o = ordinaleTitolo(t);
@@ -83,6 +99,8 @@ export function applicaFiltri(titoli, f) {
 
 function valoreDi(t, campo) {
   if (campo === 'rating') return ordinaleTitolo(t);
+  if (campo === 'cedolaNetta') return cedolaNetta(t);
+  if (campo === 'aliquota') return aliquota(t);
   const v = t[campo];
   return typeof v === 'string' ? v.toLowerCase() : v;
 }

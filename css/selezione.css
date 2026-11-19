@@ -26,11 +26,11 @@
 .btn-piccolo { height: 34px; padding: 0 14px; font-size: 13px; }
 
 .tabella-scroll { overflow-x: auto; }
-.tabella { min-width: 960px; }
+.tabella { min-width: 1060px; }
 
 .riga, .riga-testa {
   display: grid;
-  grid-template-columns: minmax(230px, 2.3fr) minmax(120px, 1.2fr) 92px 70px 70px 88px 76px 64px 40px;
+  grid-template-columns: minmax(230px, 2.3fr) minmax(120px, 1.2fr) 92px 92px 70px 70px 88px 76px 64px 40px;
   gap: 12px; padding: 10px 20px; align-items: center;
 }
 .riga { border-top: 1px solid #EEF0F3; }
