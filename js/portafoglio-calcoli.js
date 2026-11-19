@@ -1,6 +1,8 @@
 // Calcoli sul portafoglio (nessuna grafica): usati dalla schermata Portafoglio
 // e, più avanti, dalla schermata Analisi.
 
+import { cedolaNetta } from './filtri.js';
+
 // Il portafoglio accetta solo titoli in questa valuta
 export const VALUTA_PORTAFOGLIO = 'EUR';
 
@@ -21,6 +23,7 @@ export function risolviPosizioni(bozza, titoli) {
       valida: valida,
       motivo: motivo,
       cedolaAnnua: valida ? b.nominale * (titolo.cedola || 0) / 100 : 0,
+      cedolaAnnuaNetta: valida ? b.nominale * (cedolaNetta(titolo) || 0) / 100 : 0,
       // quanto costa comprarlo: nominale x prezzo / 100 (il prezzo è per 100 di nominale)
       controvalore: valida ? b.nominale * (titolo.prezzo || 0) / 100 : 0
     };
@@ -28,19 +31,36 @@ export function risolviPosizioni(bozza, titoli) {
 }
 
 export function calcolaTotali(posizioni) {
-  let nominale = 0, cedoleAnnue = 0, numero = 0, controvalore = 0;
+  let nominale = 0, cedoleAnnue = 0, cedoleNette = 0, numero = 0, controvalore = 0;
   posizioni.forEach(p => {
     if (!p.valida) return;
     nominale += p.nominale;
     cedoleAnnue += p.cedolaAnnua;
+    cedoleNette += p.cedolaAnnuaNetta;
     controvalore += p.controvalore;
     numero += 1;
   });
-  return { nominale: nominale, cedoleAnnue: cedoleAnnue, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
+  return { nominale: nominale, cedoleAnnue: cedoleAnnue, cedoleNette: cedoleNette, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
 }
 
 // Peso percentuale sul nominale totale dei titoli validi
 export function peso(posizione, totali) {
   if (!posizione.valida || totali.nominale === 0) return null;
   return posizione.nominale / totali.nominale * 100;
+}
+
+// Taglio minimo del titolo (se manca nel file si assume 1.000)
+export function lottoMinimo(titolo) {
+  return (titolo && titolo.lottoMinimo) || 1000;
+}
+
+// Nominale necessario per incassare almeno la cedola annua netta desiderata (in euro).
+// Si arrotonda per eccesso a un multiplo del taglio minimo, e non scende mai sotto il taglio minimo.
+// Se il titolo non ha cedola restituisce null.
+export function nominaleDaCedolaNetta(titolo, cedolaDesiderata) {
+  const tasso = (cedolaNetta(titolo) || 0) / 100;
+  if (!(tasso > 0) || !(cedolaDesiderata > 0)) return null;
+  const lotto = lottoMinimo(titolo);
+  const lotti = Math.max(1, Math.ceil(cedolaDesiderata / tasso / lotto - 1e-9));
+  return lotti * lotto;
 }

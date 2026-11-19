@@ -1,8 +1,9 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
 import { stato, impostaBozza, impostaImpostazioni } from './state.js';
-import { risolviPosizioni, calcolaTotali, peso } from './portafoglio-calcoli.js';
-import { esc, fmtNum, fmtData, leggiEuro } from './formati.js';
+import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta } from './portafoglio-calcoli.js';
+import { cedolaNetta } from './filtri.js';
+import { esc, fmtNum, fmtData, leggiEuro, leggiDecimale } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -27,13 +28,17 @@ function riga(p) {
     <div class="riga">
       <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
       <div>${fmtData(t.scadenza)}</div>
-      <div class="num">${fmtNum(t.cedola)}%</div>
+      <div class="num">${fmtNum(cedolaNetta(t))}%</div>
       <div class="num">${fmtNum(t.prezzo)}</div>
       <div class="num">${fmtNum(t.lottoMinimo, 0)}</div>
       <div class="num"><input class="input-nominale" type="text" inputmode="numeric"
         data-isin="${esc(p.isin)}" value="${fmtNum(p.nominale, 0)}" aria-label="Nominale"></div>
       <div class="num" data-peso="${esc(p.isin)}"></div>
       <div class="num" data-cedole="${esc(p.isin)}"></div>
+      <div class="num">${cedolaNetta(t) > 0
+        ? `<input class="input-nominale input-cedola" type="text" inputmode="decimal"
+            data-isin="${esc(p.isin)}" value="${fmtNum(p.cedolaAnnuaNetta)}" aria-label="Cedola annua netta in euro">`
+        : '<span class="testo-soft">—</span>'}</div>
       <button class="btn-x" data-azione="rimuovi" data-isin="${esc(p.isin)}" aria-label="Togli dal portafoglio">✕</button>
     </div>`;
 }
@@ -89,6 +94,7 @@ function disegna() {
         <div class="card"><div class="testo-soft">Nominale totale</div><div class="valore" id="t-nominale"></div></div>
         <div class="card"><div class="testo-soft">Numero titoli</div><div class="valore" id="t-numero"></div></div>
         <div class="card"><div class="testo-soft">Cedole annue lorde</div><div class="valore" id="t-cedole"></div></div>
+        <div class="card"><div class="testo-soft">Cedole annue nette</div><div class="valore" id="t-cedole-nette"></div></div>
         <div class="card"><div class="testo-soft">Capitale impiegato (stima)</div><div class="valore" id="t-controvalore"></div></div>
         <div class="card"><label class="testo-soft" for="p-capitale">Capitale disponibile (€)</label>
           <input id="p-capitale" class="input-capitale" inputmode="numeric" placeholder="es. 50.000"
@@ -101,12 +107,13 @@ function disegna() {
       <section class="card tabella-card">
         <div class="tabella-scroll"><div class="tabella tabella-portafoglio">
           <div class="riga-testa">
-            <div>Titolo</div><div>Scadenza</div><div class="num">Cedola</div><div class="num">Prezzo</div>
+            <div>Titolo</div><div>Scadenza</div><div class="num">Cedola netta</div><div class="num">Prezzo</div>
             <div class="num">Lotto min.</div><div class="num">Nominale</div><div class="num">Peso</div>
-            <div class="num">Cedole annue</div><div></div>
+            <div class="num">Cedola annua lorda</div><div class="num">Cedola annua netta</div><div></div>
           </div>
           ${posizioni.map(riga).join('')}
         </div></div>
+        <div class="tabella-piede nota-tabella">Puoi scrivere il <strong>nominale</strong> oppure la <strong>cedola annua netta</strong> che vuoi incassare (in euro): l'altro valore si calcola da solo. Dalla cedola il nominale è arrotondato per eccesso a un multiplo del taglio minimo, quindi la cedola può risultare un po' più alta di quella scritta.</div>
       </section>
     </div>`;
 
@@ -123,12 +130,19 @@ function aggiornaNumeri() {
     const cellaCedole = radice.querySelector(`[data-cedole="${p.isin}"]`);
     if (cellaPeso) { const w = peso(p, tot); cellaPeso.textContent = w === null ? '—' : fmtNum(w, 1) + '%'; }
     if (cellaCedole) cellaCedole.textContent = fmtNum(p.cedolaAnnua) + ' €';
+
+    // Le due caselle modificabili si allineano, tranne quella in cui stai scrivendo
+    const inNominale = radice.querySelector(`input.input-nominale:not(.input-cedola)[data-isin="${p.isin}"]`);
+    const inCedola = radice.querySelector(`input.input-cedola[data-isin="${p.isin}"]`);
+    if (inNominale && document.activeElement !== inNominale) inNominale.value = fmtNum(p.nominale, 0);
+    if (inCedola && document.activeElement !== inCedola) inCedola.value = fmtNum(p.cedolaAnnuaNetta);
   });
 
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
   set('t-numero', String(tot.numero));
   set('t-cedole', fmtNum(tot.cedoleAnnue) + ' €');
+  set('t-cedole-nette', fmtNum(tot.cedoleNette) + ' €');
   set('t-controvalore', fmtNum(tot.controvalore, 0) + ' €');
 
   const capitale = stato.impostazioni.capitale;
@@ -165,16 +179,28 @@ radice.addEventListener('change', e => {
 
   const isin = campo.dataset.isin;
   const titolo = stato.titoli.find(t => t.isin === isin);
-  const minimo = (titolo && titolo.lottoMinimo) || 1;
+  if (!titolo) return;
+  const minimo = lottoMinimo(titolo);
 
-  let valore = parseInt(campo.value.replace(/\D/g, ''), 10);
-  if (Number.isNaN(valore) || valore < minimo) valore = minimo;
-  campo.value = fmtNum(valore, 0);
+  let valore;
+  if (campo.classList.contains('input-cedola')) {
+    // Scritta la cedola annua netta: calcolo il nominale che la soddisfa
+    const desiderata = leggiDecimale(campo.value);
+    valore = desiderata === null ? null : nominaleDaCedolaNetta(titolo, desiderata);
+    if (valore === null) valore = (stato.bozza.find(b => b.isin === isin) || {}).nominale;
+  } else {
+    valore = parseInt(campo.value.replace(/\D/g, ''), 10);
+    if (Number.isNaN(valore) || valore < minimo) valore = minimo;
+  }
 
   aggiornandoDaQui = true;
   impostaBozza(stato.bozza.map(b => b.isin === isin ? { isin: b.isin, nominale: valore } : b));
   aggiornandoDaQui = false;
   aggiornaNumeri();
+
+  // La casella in cui hai scritto mostra il valore effettivo (la cedola può uscire un po' più alta)
+  const p = risolviPosizioni(stato.bozza, stato.titoli).find(x => x.isin === isin);
+  campo.value = campo.classList.contains('input-cedola') ? fmtNum(p.cedolaAnnuaNetta) : fmtNum(valore, 0);
 });
 
 radice.addEventListener('keydown', e => {

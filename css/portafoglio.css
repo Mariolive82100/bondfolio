@@ -17,10 +17,10 @@
 .portafoglio .messaggio { margin-top: 0; }
 
 .tabella-portafoglio .riga, .tabella-portafoglio .riga-testa {
-  grid-template-columns: minmax(230px, 2.4fr) 96px 72px 72px 88px 130px 72px 120px 40px;
+  grid-template-columns: minmax(220px, 2.4fr) 92px 84px 72px 84px 120px 64px 108px 128px 40px;
 }
 .riga-esclusa { background: #FBF6F5; }
-.riga-esclusa .esclusa-motivo { grid-column: 2 / 9; }
+.riga-esclusa .esclusa-motivo { grid-column: 2 / 10; }
 
 .input-nominale {
   width: 100%; height: 34px; padding: 0 10px;
@@ -46,3 +46,5 @@
 .input-capitale:focus { outline: 2px solid var(--accento); outline-offset: 0; }
 .valore.negativo { color: #9A2B1A; }
 .riepilogo .card { flex-basis: 170px; }
+
+.nota-tabella { justify-content: flex-start; color: var(--testo-soft); font-size: 12px; }

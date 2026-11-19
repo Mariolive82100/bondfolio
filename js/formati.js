@@ -30,3 +30,9 @@ export function leggiEuro(testo) {
 }
 
 export const NOMI_MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
+// "26,25" o "1.250,5" -> numero con decimali; vuoto o non valido -> null
+export function leggiDecimale(testo) {
+  const n = parseFloat(String(testo).trim().replace(/[\s.]/g, '').replace(',', '.'));
+  return Number.isNaN(n) || n <= 0 ? null : n;
+}
