@@ -1,7 +1,7 @@
 // Schermata 2: filtri e tabella delle obbligazioni
 
 import { stato, impostaBozza } from './state.js';
-import { FILTRI_INIZIALI, applicaFiltri, ordina } from './filtri.js';
+import { nuoviFiltri, applicaFiltri, ordina } from './filtri.js';
 import { ordinaleTitolo, etichettaRating } from './rating.js';
 import { esc, fmtNum, fmtData, NOMI_MESI } from './formati.js';
 import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
@@ -9,7 +9,7 @@ import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
 const radice = document.getElementById('view-selezione');
 const PASSO = 100; // righe mostrate alla volta
 
-let filtri = Object.assign({}, FILTRI_INIZIALI, { mesi: [] });
+let filtri = nuoviFiltri();
 let ordine = { campo: 'rendNetto', verso: -1 };
 let visibili = PASSO;
 
@@ -58,14 +58,14 @@ function disegna() {
           <input id="f-cerca" type="search" placeholder="Nome, ISIN o emittente">
         </label>
 
-        <label class="campo"><span>Tipo di emittente</span>
-          <select id="f-tipo">
-            <option value="">Tutti</option>
-            <option value="gov">Governativi</option>
-            <option value="sov">Sovranazionali</option>
-            <option value="corp">Societari</option>
-          </select>
-        </label>
+        <div class="campo"><span>Tipo di emittente</span>
+          <div class="chips-tipi">
+            <button type="button" class="chip-mese" data-tipo="gov" aria-pressed="false">Governativi</button>
+            <button type="button" class="chip-mese" data-tipo="sov" aria-pressed="false">Sovranazionali</button>
+            <button type="button" class="chip-mese" data-tipo="corp" aria-pressed="false">Societari</button>
+          </div>
+          <small class="nota">Puoi sceglierne più di uno. Nessuno = tutti.</small>
+        </div>
 
         <label class="campo"><span>Valuta</span>
           <select id="f-valuta"><option value="">Tutte</option>${valute}</select>
@@ -185,7 +185,9 @@ function intestazione() {
 
 function aggiornaChipMesi() {
   radice.querySelectorAll('.chip-mese').forEach(b => {
-    const attivo = filtri.mesi.includes(Number(b.dataset.mese));
+    const attivo = b.dataset.mese !== undefined
+      ? filtri.mesi.includes(Number(b.dataset.mese))
+      : filtri.tipi.includes(b.dataset.tipo);
     b.classList.toggle('is-attivo', attivo);
     b.setAttribute('aria-pressed', String(attivo));
   });
@@ -230,8 +232,18 @@ radice.addEventListener('input', e => {
 });
 
 radice.addEventListener('click', e => {
-  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-mese]');
+  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-mese], [data-tipo]');
   if (!el) return;
+
+  if (el.dataset.tipo) {
+    const tipo = el.dataset.tipo;
+    // creo sempre una nuova lista, senza modificare quella vecchia
+    filtri.tipi = filtri.tipi.includes(tipo) ? filtri.tipi.filter(x => x !== tipo) : filtri.tipi.concat([tipo]);
+    visibili = PASSO;
+    aggiornaChipMesi();
+    aggiornaTabella();
+    return;
+  }
 
   if (el.dataset.mese) {
     const m = Number(el.dataset.mese);
@@ -274,7 +286,7 @@ radice.addEventListener('click', e => {
       }
       break;
     case 'azzera':
-      filtri = Object.assign({}, FILTRI_INIZIALI, { mesi: [] });
+      filtri = nuoviFiltri();
       visibili = PASSO;
       disegna();
       break;

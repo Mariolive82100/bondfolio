@@ -4,7 +4,7 @@ import { ordinaleTitolo } from './rating.js';
 
 export const FILTRI_INIZIALI = {
   cerca: '',
-  tipo: '',        // '' = tutti, 'gov' = governativi, 'sov' = sovranazionali, 'corp' = societari
+  tipi: [],        // tipi di emittente scelti: 'gov' governativi, 'sov' sovranazionali, 'corp' societari; vuoto = tutti
   valuta: 'EUR',   // '' = tutte
   annoDa: '',
   annoA: '',
@@ -16,6 +16,11 @@ export const FILTRI_INIZIALI = {
   mesi: [],        // mesi di pagamento della cedola (1 = gennaio ... 12); vuoto = tutti
   mesiRegola: 'solo' // 'solo' = paga solo in quei mesi, 'almeno' = paga in almeno uno di quei mesi
 };
+
+// Copia nuova dei filtri iniziali (le liste vanno sempre ricreate, mai condivise)
+export function nuoviFiltri() {
+  return Object.assign({}, FILTRI_INIZIALI, { mesi: [], tipi: [] });
+}
 
 export function tipoEmittente(t) {
   if (t.emittenteCodice.startsWith('GOV_')) return 'gov';
@@ -43,7 +48,7 @@ export function applicaFiltri(titoli, f) {
     if (q && !(t.nome.toLowerCase().includes(q) ||
                t.isin.toLowerCase().includes(q) ||
                t.emittente.toLowerCase().includes(q))) return false;
-    if (f.tipo && tipoEmittente(t) !== f.tipo) return false;
+    if (f.tipi && f.tipi.length > 0 && !f.tipi.includes(tipoEmittente(t))) return false;
     if (f.valuta && t.valuta !== f.valuta) return false;
 
     const anno = t.scadenza ? Number(t.scadenza.slice(0, 4)) : null;

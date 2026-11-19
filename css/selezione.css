@@ -76,3 +76,5 @@
   background: #fff; color: var(--testo); font-size: 12px; font-weight: 500;
 }
 .chip-mese.is-attivo { background: var(--accento); border-color: var(--accento); color: #fff; }
+
+.chips-tipi { display: grid; grid-template-columns: 1fr; gap: 6px; }
