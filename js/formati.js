@@ -29,3 +29,19 @@ export function leggiDecimale(testo) {
   const n = parseFloat(String(testo).trim().replace(/[\s.]/g, '').replace(',', '.'));
   return Number.isNaN(n) || n <= 0 ? null : n;
 }
+
+// "0", "92,97", "1.250,5" o "92.97" -> numero (zero ammesso); vuoto, negativo o non valido -> null
+// Con la virgola, i punti sono separatori delle migliaia; senza virgola, il punto è il separatore dei decimali.
+export function leggiNumero(testo) {
+  let t = String(testo).trim().replace(/\s/g, '');
+  if (t === '') return null;
+  t = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+  const n = parseFloat(t);
+  return Number.isNaN(n) || n < 0 ? null : n;
+}
+
+// Data di oggi nel formato "aaaa-mm-gg" (ora locale)
+export function oggiIso() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}

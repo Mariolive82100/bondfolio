@@ -45,3 +45,25 @@ export function caricaBozza() {
     return [];
   }
 }
+
+// Portafoglio costruito: lista di acquisti { id, isin, nominale, prezzoCarico, data, commissioni }
+const CHIAVE_COSTRUITO = 'bondfolio_costruito_v1';
+
+export function salvaCostruito(lista) {
+  try {
+    localStorage.setItem(CHIAVE_COSTRUITO, JSON.stringify(lista));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function caricaCostruito() {
+  try {
+    const testo = localStorage.getItem(CHIAVE_COSTRUITO);
+    const lista = testo ? JSON.parse(testo) : [];
+    return Array.isArray(lista) ? lista : [];
+  } catch (e) {
+    return [];
+  }
+}

@@ -1,11 +1,11 @@
-// Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
+// Schermata 3: portafoglio (bozza e portafoglio costruito)
 
 import { stato, impostaBozza } from './state.js';
-import { risolviPosizioni, calcolaTotali, calcolaIndicatori, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, pesoPerTitolo, pesoPerTipo, pesoPerRating, incassiMensili, flussoAnnuo } from './portafoglio-calcoli.js';
-import { graficoColonne, graficoColonneImpilate, graficoTorta, graficoVuoto } from './grafici.js';
+import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta } from './portafoglio-calcoli.js';
+import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
+import { htmlCostruito, aggiornaCostruito, htmlConferma, aggiornaConferma, aggiornaImpatto, inConferma, annullaConferma } from './vista-costruito.js';
 import { cedolaNetta } from './filtri.js';
-import { etichettaDaOrdinale } from './rating.js';
-import { esc, fmtNum, fmtData, leggiDecimale, NOMI_MESI } from './formati.js';
+import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -55,16 +55,27 @@ function disegna() {
         <button class="${modo === 'costruito' ? 'is-attivo' : ''}" data-azione="modo-costruito">Costruito</button>
       </div>
       <div class="gruppo-bottoni">
-        ${modo === 'bozza' && stato.bozza.length > 0 ? '<button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>' : ''}
+        ${modo === 'bozza' && stato.bozza.length > 0 && !inConferma() ? `
+          <button class="btn btn-primario" data-azione="conferma-apri">Conferma acquisto</button>
+          <button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>` : ''}
+        ${modo === 'costruito' && stato.costruito.length > 0 ? `
+          <button class="btn btn-secondario" data-azione="vai-selezione">Aggiungi altri acquisti</button>
+          <button class="btn btn-secondario" data-azione="svuota-costruito">Svuota portafoglio</button>` : ''}
       </div>
     </div>`;
 
   if (modo === 'costruito') {
-    radice.innerHTML = `<div class="portafoglio">${intestazioneModo}
-      <div class="card vuoto">
-        <p>Non c'è ancora nessun portafoglio costruito.</p>
-        <p>Arriverà con il pulsante «Conferma acquisto» (prossimo passo).</p>
-      </div></div>`;
+    if (stato.costruito.length === 0) {
+      radice.innerHTML = `<div class="portafoglio">${intestazioneModo}
+        <div class="card vuoto">
+          <p>Non c'è ancora nessun portafoglio costruito.</p>
+          <p>Prepara una bozza nella schermata Selezione e premi «Conferma acquisto».</p>
+          <button class="btn btn-primario" data-azione="modo-bozza">Vai alla bozza</button>
+        </div></div>`;
+      return;
+    }
+    radice.innerHTML = `<div class="portafoglio">${intestazioneModo}${htmlCostruito()}</div>`;
+    aggiornaCostruito();
     return;
   }
 
@@ -83,6 +94,12 @@ function disegna() {
         <p>Scegli le obbligazioni nella schermata Selezione con il pulsante «+».</p>
         <button class="btn btn-primario" data-azione="vai-selezione">Vai a Selezione</button>
       </div></div>`;
+    return;
+  }
+
+  if (inConferma()) {
+    radice.innerHTML = `<div class="portafoglio">${intestazioneModo}${htmlConferma()}</div>`;
+    aggiornaConferma();
     return;
   }
 
@@ -108,61 +125,9 @@ function disegna() {
         <div class="tabella-piede nota-tabella">Puoi scrivere il <strong>nominale</strong> oppure la <strong>cedola annua netta</strong> che vuoi incassare (in euro): l'altro valore si calcola da solo. Dalla cedola il nominale è arrotondato per eccesso a un multiplo del taglio minimo, quindi la cedola può risultare un po' più alta di quella scritta.</div>
       </section>
 
-      <div class="riepilogo">
-        <div class="card"><div class="testo-soft">Nominale totale</div><div class="valore" id="t-nominale"></div></div>
-        <div class="card"><div class="testo-soft">Numero titoli</div><div class="valore" id="t-numero"></div></div>
-        <div class="card"><div class="testo-soft">Cedole annue nette</div><div class="valore" id="t-cedole-nette"></div></div>
-        <div class="card"><div class="testo-soft">Capitale impiegato (stima)</div><div class="valore" id="t-controvalore"></div></div>
-        <div class="card"><div class="testo-soft">Rendimento lordo</div><div class="valore" id="t-rend-lordo"></div></div>
-        <div class="card"><div class="testo-soft">Rendimento netto</div><div class="valore" id="t-rend-netto"></div></div>
-        <div class="card"><div class="testo-soft">Duration</div><div class="valore" id="t-duration"></div></div>
-        <div class="card"><div class="testo-soft">Scadenza media</div><div class="valore" id="t-scadenza"></div></div>
-        <div class="card"><div class="testo-soft">Cedola media netta</div><div class="valore" id="t-cedola-media"></div></div>
-        <div class="card"><div class="testo-soft">Rating medio</div><div class="valore" id="t-rating"></div><div class="testo-soft" id="t-rating-nota"></div></div>
-      </div>
+      <div id="impatto-box"></div>
 
-      <div class="grafici">
-        <section class="card card-largo">
-          <div class="card-titolo">Flusso di cassa per anno</div>
-          <div class="testo-soft" id="g-flusso-nota"></div>
-          <div id="g-flusso"></div>
-        </section>
-        <section class="card card-largo">
-          <div class="card-titolo">Cedole nette per anno</div>
-          <div class="testo-soft">Solo le cedole, senza i rimborsi (€)</div>
-          <div id="g-cedole-anno"></div>
-        </section>
-        <section class="card">
-          <div class="card-titolo">Scaletta delle scadenze</div>
-          <div class="testo-soft">Nominale per anno di scadenza (€)</div>
-          <div id="g-scadenze"></div>
-        </section>
-        <section class="card">
-          <div class="card-titolo">Incassi cedolari netti per mese</div>
-          <div class="testo-soft" id="g-cedole-nota"></div>
-          <div id="g-cedole"></div>
-        </section>
-        <section class="card">
-          <div class="card-titolo">Diversificazione per emittente</div>
-          <div class="testo-soft">Peso sul nominale totale</div>
-          <div id="g-emittenti"></div>
-        </section>
-        <section class="card">
-          <div class="card-titolo">Peso dei singoli titoli</div>
-          <div class="testo-soft">Peso sul nominale totale</div>
-          <div id="g-titoli"></div>
-        </section>
-        <section class="card">
-          <div class="card-titolo">Tipo di emittente</div>
-          <div class="testo-soft">Governativi, sovranazionali, societari</div>
-          <div id="g-tipo"></div>
-        </section>
-        <section class="card">
-          <div class="card-titolo">Distribuzione per rating</div>
-          <div class="testo-soft">Peso sul nominale totale</div>
-          <div id="g-rating"></div>
-        </section>
-      </div>
+      ${htmlPannelloAnalisi()}
     </div>`;
 
   aggiornaNumeri();
@@ -185,75 +150,12 @@ function aggiornaNumeri() {
   });
 
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
-  set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
-  set('t-numero', String(tot.numero));
-  set('t-cedole-nette', fmtNum(tot.cedoleNette) + ' €');
-  set('t-controvalore', fmtNum(tot.controvalore, 0) + ' €');
-
-  set('t-rend-lordo', tot.rendLordo === null ? '—' : fmtNum(tot.rendLordo) + '%');
-  set('t-rend-netto', tot.rendNetto === null ? '—' : fmtNum(tot.rendNetto) + '%');
-  set('t-duration', tot.duration === null ? '—' : fmtNum(tot.duration, 1) + ' anni');
-  const ind = calcolaIndicatori(posizioni, stato.meta && stato.meta.dataRiferimento);
-  set('t-scadenza', ind.scadenzaAnni === null ? '—' : fmtNum(ind.scadenzaAnni, 1) + ' anni');
-  set('t-cedola-media', ind.cedolaNetta === null ? '—' : fmtNum(ind.cedolaNetta) + '%');
-  set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
-  set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
-    ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
-  aggiornaGrafici(posizioni);
+  aggiornaPannelloAnalisi(posizioni, tot, stato.meta && stato.meta.dataRiferimento);
+  aggiornaImpatto();
 
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file o non in euro). Puoi toglierlo con la ✕.'
     : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file o non in euro). Puoi toglierli con la ✕.');
-}
-
-// Ridisegna i grafici (a ogni modifica dei nominali)
-function aggiornaGrafici(posizioni) {
-  const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-
-  const flusso = flussoAnnuo(posizioni, stato.meta && stato.meta.dataRiferimento);
-  metti('g-flusso', flusso.length === 0 ? graficoVuoto('Nessun dato') : graficoColonneImpilate(flusso.map(x => ({
-    etichetta: String(x.anno),
-    parti: [x.cedole, x.rimborsi],
-    titolo: x.anno + ': cedole nette ' + fmtNum(x.cedole) + ' € + rimborsi ' + fmtNum(x.rimborsi) + ' € = ' + fmtNum(x.cedole + x.rimborsi) + ' €'
-  })), ['Cedole nette', 'Rimborsi a scadenza']));
-  const cedoleAnno = flusso.some(x => x.cedole > 0);
-  metti('g-cedole-anno', !cedoleAnno ? graficoVuoto('Nessuna cedola') : graficoColonne(flusso.map(x => ({
-    etichetta: String(x.anno),
-    valore: x.cedole,
-    titolo: x.anno + ': ' + fmtNum(x.cedole) + ' € di cedole nette'
-  }))));
-  const totCedole = flusso.reduce((s, x) => s + x.cedole, 0), totRimborsi = flusso.reduce((s, x) => s + x.rimborsi, 0);
-  metti('g-flusso-nota', flusso.length === 0 ? '' :
-    'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (rimborso al 100%, cedole dai mesi ancora da pagare)');
-
-  const scadenze = scalettaScadenze(posizioni);
-  metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoColonne(scadenze.map(x => ({
-    etichetta: "'" + String(x.anno).slice(2),
-    valore: x.nominale,
-    titolo: x.anno + ': ' + fmtNum(x.nominale, 0) + ' € di nominale'
-  }))));
-
-  // Torte: i pesi sono sul nominale; al centro, a riposo, il nominale totale
-  const totaleNominale = posizioni.reduce((s, p) => s + (p.valida ? p.nominale : 0), 0);
-  const centro = { titolo: fmtNum(totaleNominale, 0) + ' €', sotto: 'nominale totale' };
-  const torta = voci => voci.length === 0 ? graficoVuoto('Nessun dato') : graficoTorta(voci.map(x => ({
-    nome: x.nome, pct: x.pct, altri: x.altri, valoreTesto: fmtNum(x.nominale, 0) + ' € di nominale'
-  })), centro);
-  metti('g-emittenti', torta(pesoPerEmittente(posizioni)));
-  metti('g-titoli', torta(pesoPerTitolo(posizioni)));
-  metti('g-tipo', torta(pesoPerTipo(posizioni)));
-  metti('g-rating', torta(pesoPerRating(posizioni)));
-
-  const incassi = incassiMensili(posizioni);
-  const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);
-  metti('g-cedole', totaleCedole === 0 ? graficoVuoto('Nessuna cedola') : graficoColonne(incassi.mesi.map((v, i) => ({
-    etichetta: NOMI_MESI[i],
-    valore: v,
-    titolo: NOMI_MESI[i] + ': ' + fmtNum(v) + ' € netti'
-  }))));
-  metti('g-cedole-nota', totaleCedole === 0 ? '' :
-    'Media: ' + fmtNum(totaleCedole / 12, 0) + ' € al mese' +
-    (incassi.nonCollocati > 0 ? ` · ${incassi.nonCollocati} ${incassi.nonCollocati === 1 ? 'titolo non ha' : 'titoli non hanno'} i mesi di pagamento nel file` : ''));
 }
 
 /* ---------- Azioni dell'utente ---------- */
@@ -306,7 +208,7 @@ radice.addEventListener('click', e => {
 
   switch (el.dataset.azione) {
     case 'modo-bozza': modo = 'bozza'; disegna(); break;
-    case 'modo-costruito': modo = 'costruito'; disegna(); break;
+    case 'modo-costruito': modo = 'costruito'; annullaConferma(); disegna(); break;
     case 'svuota':
       if (stato.bozza.length > 0 && confirm('Togliere tutti i ' + stato.bozza.length + ' titoli dalla bozza?')) {
         impostaBozza([]);
@@ -319,6 +221,11 @@ radice.addEventListener('click', e => {
 });
 
 document.addEventListener('dati-aggiornati', disegna);
+document.addEventListener('costruito-aggiornato', disegna);
+document.addEventListener('ridisegna-portafoglio', e => {
+  if (e.detail && e.detail.modo) modo = e.detail.modo;
+  disegna();
+});
 document.addEventListener('bozza-aggiornata', () => { if (!aggiornandoDaQui) disegna(); });
 
 disegna();
