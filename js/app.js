@@ -1,4 +1,4 @@
-// Gestione della navigazione tra le 4 schermate
+// Gestione della navigazione tra le 3 schermate
 
 import { VERSIONE } from './versione.js';
 import './vista-dati.js';
@@ -8,8 +8,7 @@ import './vista-portafoglio.js';
 const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni scaricato da Simple Tools for Investors"],
   selezione: ['Selezione', 'Filtra le obbligazioni e aggiungile al portafoglio'],
-  portafoglio: ['Portafoglio', 'Assegna i nominali e controlla i pesi'],
-  analisi: ['Analisi', 'Rendimento, duration, cedole e diversificazione']
+  portafoglio: ['Portafoglio e analisi', 'Modifica i nominali e guarda subito rendimento, duration, cedole e diversificazione']
 };
 
 const voci = document.querySelectorAll('.nav-item');

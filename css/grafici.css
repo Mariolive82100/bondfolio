@@ -1,0 +1,24 @@
+/* ---------- Grafici (schermata Portafoglio e analisi) ---------- */
+.grafici { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.grafici .card { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.grafici .testo-soft { margin-bottom: 8px; min-height: 18px; }
+
+/* Colonne verticali */
+.colonne { display: flex; gap: 4px; align-items: stretch; }
+.colonna { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.col-valore { font-size: 10px; color: var(--testo-soft); height: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.col-area { width: 100%; height: 110px; display: flex; align-items: flex-end; }
+.col-barra { width: 100%; background: var(--accento); border-radius: 4px 4px 0 0; }
+.colonna:hover .col-barra { background: #09594A; }
+.col-etichetta { font-size: 10px; color: var(--testo-soft); }
+
+/* Barre orizzontali */
+.barre { display: flex; flex-direction: column; gap: 8px; }
+.barra-riga { display: grid; grid-template-columns: minmax(80px, 1.1fr) 2fr 48px; gap: 8px; align-items: center; font-size: 12px; }
+.barra-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-pista { height: 12px; border-radius: 6px; background: #EEF0F3; overflow: hidden; }
+.barra-riempi { height: 100%; background: var(--accento); border-radius: 6px; }
+.barra-riempi.barra-altri { background: #98A2B3; }
+.barra-pct { text-align: right; font-variant-numeric: tabular-nums; color: var(--testo-soft); }
+
+.grafico-vuoto { padding: 40px 0; text-align: center; color: var(--testo-soft); font-size: 13px; }

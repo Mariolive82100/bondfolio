@@ -81,3 +81,57 @@ export function nominaleDaCedolaNetta(titolo, cedolaDesiderata) {
   const lotti = Math.max(1, Math.ceil(cedolaDesiderata / tasso / lotto - 1e-9));
   return lotti * lotto;
 }
+
+/* ---------- Dati per i grafici ---------- */
+
+// Nominale per anno di scadenza, con anche gli anni intermedi a zero: [{ anno, nominale }]
+export function scalettaScadenze(posizioni) {
+  const perAnno = new Map();
+  posizioni.forEach(p => {
+    if (!p.valida || !p.titolo.scadenza) return;
+    const anno = Number(p.titolo.scadenza.slice(0, 4));
+    perAnno.set(anno, (perAnno.get(anno) || 0) + p.nominale);
+  });
+  if (perAnno.size === 0) return [];
+  const anni = Array.from(perAnno.keys());
+  const primo = Math.min(...anni), ultimo = Math.max(...anni);
+  const lista = [];
+  for (let a = primo; a <= ultimo; a++) lista.push({ anno: a, nominale: perAnno.get(a) || 0 });
+  return lista;
+}
+
+// Peso sul nominale di ciascun emittente, dal più pesante; oltre i primi 'massimo' il resto va in "Altri"
+export function pesoPerEmittente(posizioni, massimo = 6) {
+  const perEmittente = new Map();
+  let totale = 0;
+  posizioni.forEach(p => {
+    if (!p.valida) return;
+    const nome = p.titolo.emittente || p.titolo.emittenteCodice || p.isin;
+    perEmittente.set(nome, (perEmittente.get(nome) || 0) + p.nominale);
+    totale += p.nominale;
+  });
+  if (totale === 0) return [];
+  const ordinati = Array.from(perEmittente, ([nome, nominale]) => ({ nome: nome, nominale: nominale }))
+    .sort((a, b) => b.nominale - a.nominale);
+  let lista = ordinati;
+  if (ordinati.length > massimo) {
+    const resto = ordinati.slice(massimo).reduce((s, x) => s + x.nominale, 0);
+    lista = ordinati.slice(0, massimo).concat([{ nome: 'Altri (' + (ordinati.length - massimo) + ')', nominale: resto, altri: true }]);
+  }
+  return lista.map(x => Object.assign({ pct: x.nominale / totale * 100 }, x));
+}
+
+// Cedole nette incassate in ciascun mese (12 numeri, gennaio..dicembre).
+// Il netto di ogni titolo si divide in parti uguali sui suoi mesi di pagamento.
+// nonCollocati = titoli con cedola ma senza mesi di pagamento nel file.
+export function incassiMensili(posizioni) {
+  const mesi = new Array(12).fill(0);
+  let nonCollocati = 0;
+  posizioni.forEach(p => {
+    if (!p.valida || !(p.cedolaAnnuaNetta > 0)) return;
+    const m = p.titolo.mesiCedola || [];
+    if (m.length === 0) { nonCollocati += 1; return; }
+    m.forEach(mese => { mesi[mese - 1] += p.cedolaAnnuaNetta / m.length; });
+  });
+  return { mesi: mesi, nonCollocati: nonCollocati };
+}

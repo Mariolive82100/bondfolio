@@ -1,9 +1,10 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
 import { stato, impostaBozza } from './state.js';
-import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta } from './portafoglio-calcoli.js';
+import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, incassiMensili } from './portafoglio-calcoli.js';
+import { graficoColonne, graficoBarre, graficoVuoto } from './grafici.js';
 import { cedolaNetta } from './filtri.js';
-import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
+import { esc, fmtNum, fmtData, leggiDecimale, NOMI_MESI } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -54,7 +55,6 @@ function disegna() {
       </div>
       <div class="gruppo-bottoni">
         ${modo === 'bozza' && stato.bozza.length > 0 ? '<button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>' : ''}
-        <button class="btn btn-primario" data-azione="vai-analisi">Vai all'analisi</button>
       </div>
     </div>`;
 
@@ -102,6 +102,24 @@ function disegna() {
         <div class="card"><div class="testo-soft">Duration</div><div class="valore" id="t-duration"></div></div>
       </div>
 
+      <div class="grafici">
+        <section class="card">
+          <div class="card-titolo">Scaletta delle scadenze</div>
+          <div class="testo-soft">Nominale per anno di scadenza (€)</div>
+          <div id="g-scadenze"></div>
+        </section>
+        <section class="card">
+          <div class="card-titolo">Diversificazione per emittente</div>
+          <div class="testo-soft">Peso sul nominale totale</div>
+          <div id="g-emittenti"></div>
+        </section>
+        <section class="card">
+          <div class="card-titolo">Incassi cedolari netti per mese</div>
+          <div class="testo-soft" id="g-cedole-nota"></div>
+          <div id="g-cedole"></div>
+        </section>
+      </div>
+
       ${tot.escluse > 0 ? `<div class="messaggio messaggio-avviso" id="avviso-escluse"></div>` : ''}
 
       <section class="card tabella-card">
@@ -146,9 +164,40 @@ function aggiornaNumeri() {
   set('t-rend-lordo', tot.rendLordo === null ? '—' : fmtNum(tot.rendLordo) + '%');
   set('t-rend-netto', tot.rendNetto === null ? '—' : fmtNum(tot.rendNetto) + '%');
   set('t-duration', tot.duration === null ? '—' : fmtNum(tot.duration, 1) + ' anni');
+  aggiornaGrafici(posizioni);
+
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file o non in euro). Puoi toglierlo con la ✕.'
     : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file o non in euro). Puoi toglierli con la ✕.');
+}
+
+// Ridisegna i tre grafici (a ogni modifica dei nominali)
+function aggiornaGrafici(posizioni) {
+  const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+  const scadenze = scalettaScadenze(posizioni);
+  metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoColonne(scadenze.map(x => ({
+    etichetta: "'" + String(x.anno).slice(2),
+    valore: x.nominale,
+    titolo: x.anno + ': ' + fmtNum(x.nominale, 0) + ' € di nominale'
+  }))));
+
+  const emittenti = pesoPerEmittente(posizioni);
+  metti('g-emittenti', emittenti.length === 0 ? graficoVuoto('Nessun dato') : graficoBarre(emittenti.map(x => ({
+    nome: x.nome, pct: x.pct, altri: x.altri,
+    titolo: x.nome + ': ' + fmtNum(x.pct, 1) + '% (' + fmtNum(x.nominale, 0) + ' € di nominale)'
+  }))));
+
+  const incassi = incassiMensili(posizioni);
+  const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);
+  metti('g-cedole', totaleCedole === 0 ? graficoVuoto('Nessuna cedola') : graficoColonne(incassi.mesi.map((v, i) => ({
+    etichetta: NOMI_MESI[i],
+    valore: v,
+    titolo: NOMI_MESI[i] + ': ' + fmtNum(v) + ' € netti'
+  }))));
+  metti('g-cedole-nota', totaleCedole === 0 ? '' :
+    'Media: ' + fmtNum(totaleCedole / 12, 0) + ' € al mese' +
+    (incassi.nonCollocati > 0 ? ` · ${incassi.nonCollocati} ${incassi.nonCollocati === 1 ? 'titolo non ha' : 'titoli non hanno'} i mesi di pagamento nel file` : ''));
 }
 
 /* ---------- Azioni dell'utente ---------- */
@@ -208,7 +257,6 @@ radice.addEventListener('click', e => {
       }
       break;
     case 'rimuovi': impostaBozza(stato.bozza.filter(b => b.isin !== el.dataset.isin)); break;
-    case 'vai-analisi': vai('analisi'); break;
     case 'vai-selezione': vai('selezione'); break;
     case 'vai-dati': vai('dati'); break;
   }
