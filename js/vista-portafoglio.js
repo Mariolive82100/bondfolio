@@ -45,7 +45,10 @@ function disegna() {
         <button class="${modo === 'bozza' ? 'is-attivo' : ''}" data-azione="modo-bozza">Bozza</button>
         <button class="${modo === 'costruito' ? 'is-attivo' : ''}" data-azione="modo-costruito">Costruito</button>
       </div>
-      <button class="btn btn-primario" data-azione="vai-analisi">Vai all'analisi</button>
+      <div class="gruppo-bottoni">
+        ${modo === 'bozza' && stato.bozza.length > 0 ? '<button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>' : ''}
+        <button class="btn btn-primario" data-azione="vai-analisi">Vai all'analisi</button>
+      </div>
     </div>`;
 
   if (modo === 'costruito') {
@@ -191,6 +194,11 @@ radice.addEventListener('click', e => {
   switch (el.dataset.azione) {
     case 'modo-bozza': modo = 'bozza'; disegna(); break;
     case 'modo-costruito': modo = 'costruito'; disegna(); break;
+    case 'svuota':
+      if (stato.bozza.length > 0 && confirm('Togliere tutti i ' + stato.bozza.length + ' titoli dalla bozza?')) {
+        impostaBozza([]);
+      }
+      break;
     case 'rimuovi': impostaBozza(stato.bozza.filter(b => b.isin !== el.dataset.isin)); break;
     case 'vai-analisi': vai('analisi'); break;
     case 'vai-selezione': vai('selezione'); break;

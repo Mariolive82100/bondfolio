@@ -6,7 +6,7 @@ import { FILTRI_INIZIALI, applicaFiltri, ordina } from './filtri.js';
 import { ordinaleTitolo, etichettaRating } from './rating.js';
 import { esc, fmtNum, fmtData, leggiEuro } from './formati.js';
 import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
-import { PRESET, nomePreset, eSoglia, calcolaSoglie, passaPreset, applicaPreset, riduciPerEmittente } from './preset.js';
+import { PRESET, FLUSSI, nomePreset, eSoglia, calcolaSoglie, passaPreset, applicaPreset, riduciPerEmittente, frequenzaCedole, filtraPerFlusso } from './preset.js';
 
 const radice = document.getElementById('view-selezione');
 const PASSO = 100; // righe mostrate alla volta
@@ -15,6 +15,7 @@ let filtri = Object.assign({}, FILTRI_INIZIALI);
 let ordine = { campo: 'rendNetto', verso: -1 };
 let visibili = PASSO;
 let presetAttivi = new Set();   // preset scelti (si combinano in AND)
+let flussoAttivi = new Set();   // frequenze cedole scelte (12, 4, 2, 1); vuoto = indifferente
 let soglie = null;              // fasce dei preset, calcolate sui titoli del file
 let soglieSu = null;
 let costruttoreAperto = false; // pannello "Costruisci portafoglio"
@@ -215,6 +216,12 @@ function disegnaCostruttore() {
           <option value="rendimento" ${imp.pesi === 'rendimento' ? 'selected' : ''}>Proporzionali al rendimento</option>
         </select>
       </label>
+      <label class="campo"><span>Flusso cedole</span>
+        <select id="c-flusso">
+          <option value="normale" ${imp.flusso !== 'regolare' ? 'selected' : ''}>Normale</option>
+          <option value="regolare" ${imp.flusso === 'regolare' ? 'selected' : ''}>Regolare ogni mese</option>
+        </select>
+      </label>
       <button class="btn btn-primario" data-azione="costruisci">Costruisci</button>
     </div>
     <small class="nota">Parte dai titoli che vedi ora in tabella (filtri e preset inclusi) e sostituisce la bozza attuale.</small>
@@ -239,6 +246,9 @@ function eseguiCostruzione() {
   impostaBozza(r.bozza);
   const euro = n => fmtNum(n, 0) + ' €';
   let testo = `Bozza sostituita: <strong>${r.trovati}</strong> titoli. Capitale impiegato <strong>${euro(r.impiegato)}</strong> su ${euro(imp.capitale)}, liquidità residua <strong>${euro(r.residuo)}</strong>. Peso massimo per emittente: ${fmtNum(r.pesoMaxEmittente, 1)}%.`;
+  const mesiVuoti = r.mensili.filter(x => x < 0.005).length;
+  testo += ` Cedole lorde mensili: da <strong>${euro(Math.min(...r.mensili))}</strong> a <strong>${euro(Math.max(...r.mensili))}</strong>` +
+    (mesiVuoti > 0 ? ` (${mesiVuoti} ${mesiVuoti === 1 ? 'mese' : 'mesi'} senza cedole)` : '') + '.';
   const note = [];
   if (r.trovati < r.richiesti) note.push(`Ne ho trovati solo ${r.trovati} su ${r.richiesti} richiesti (limite per emittente, capitale o filtri troppo stretti).`);
   if (r.pesoMaxEmittente > imp.maxEmittente + 1) note.push(`Il peso massimo per emittente supera il limite del ${imp.maxEmittente}%.`);
@@ -249,7 +259,7 @@ function eseguiCostruzione() {
 
 /* ---------- Preset ---------- */
 
-function disegnaPreset(base, idSoglia, trovati) {
+function disegnaPreset(base0, base, idSoglia, trovati) {
   const barra = document.getElementById('preset-barra');
   if (!barra) return;
 
@@ -266,21 +276,34 @@ function disegnaPreset(base, idSoglia, trovati) {
       data-preset="${p.id}" title="${esc(p.info)}" aria-pressed="${attivo}">${esc(p.nome)}${conto}</button>`;
   }).join('');
 
-  const togli = presetAttivi.size > 0
+  const chipFlusso = FLUSSI.map(f => {
+    const attivo = flussoAttivi.has(f.freq);
+    const n = base0.filter(t => frequenzaCedole(t) === f.freq).length;
+    return `<button class="chip-preset ${attivo ? 'is-attivo' : ''} ${n === 0 && !attivo ? 'is-vuoto' : ''}"
+      data-flusso="${f.freq}" title="Titoli con ${f.freq} ${f.freq === 1 ? 'cedola' : 'cedole'} all'anno" aria-pressed="${attivo}">${f.nome} <span class="chip-n">${n}</span></button>`;
+  }).join('');
+
+  const togli = (presetAttivi.size > 0 || flussoAttivi.size > 0)
     ? '<button class="link-btn" data-azione="togli-preset">Togli i preset</button>' : '';
 
   let avviso = '';
-  if (idSoglia.length > 0 && trovati === 0) {
-    // Cerco quale preset, tolto, fa tornare dei risultati
+  if ((idSoglia.length > 0 || flussoAttivi.size > 0) && trovati === 0) {
+    // Cerco quale scelta, tolta, fa tornare dei risultati
     const aiuti = idSoglia
-      .map(id => ({ id: id, n: applicaPreset(base, idSoglia.filter(x => x !== id), soglie).length }))
+      .map(id => ({ nome: nomePreset(id), n: applicaPreset(base, idSoglia.filter(x => x !== id), soglie).length }));
+    if (flussoAttivi.size > 0) {
+      aiuti.push({ nome: 'flusso cedole', n: applicaPreset(base0, idSoglia, soglie).length });
+    }
+    const suggerimenti = aiuti
       .filter(x => x.n > 0)
-      .map(x => `togliendo «${esc(nomePreset(x.id))}» ottieni ${x.n.toLocaleString('it-IT')} titoli`);
+      .map(x => `togliendo «${esc(x.nome)}» ottieni ${x.n.toLocaleString('it-IT')} titoli`);
+    const scelte = idSoglia.length + (flussoAttivi.size > 0 ? 1 : 0);
     avviso = `<div class="preset-avviso">Nessun titolo rispetta questa combinazione.` +
-      (idSoglia.length > 1 && aiuti.length > 0 ? ' Prova così: ' + aiuti.join('; ') + '.' : '') + '</div>';
+      (scelte > 1 && suggerimenti.length > 0 ? ' Prova così: ' + suggerimenti.join('; ') + '.' : '') + '</div>';
   }
 
-  barra.innerHTML = `<span class="preset-titolo">Preset</span>${chips}${togli}${avviso}`;
+  barra.innerHTML = `<span class="preset-titolo">Preset</span>${chips}
+    <span class="preset-titolo preset-gruppo">Flusso cedole</span>${chipFlusso}${togli}${avviso}`;
 }
 
 function aggiornaTabella() {
@@ -289,7 +312,8 @@ function aggiornaTabella() {
 
   if (soglieSu !== stato.titoli) { soglie = calcolaSoglie(stato.titoli); soglieSu = stato.titoli; }
 
-  const base = applicaFiltri(stato.titoli, filtri);
+  const base0 = applicaFiltri(stato.titoli, filtri);
+  const base = filtraPerFlusso(base0, flussoAttivi);
   const idSoglia = Array.from(presetAttivi).filter(eSoglia);
   const dopoPreset = applicaPreset(base, idSoglia, soglie);
   let filtrati = ordina(dopoPreset, ordine);
@@ -297,7 +321,7 @@ function aggiornaTabella() {
 
   ultimaLista = filtrati;
 
-  disegnaPreset(base, idSoglia, dopoPreset.length);
+  disegnaPreset(base0, base, idSoglia, dopoPreset.length);
   const mostrati = filtrati.slice(0, visibili);
   const inBozza = new Set(stato.bozza.map(b => b.isin));
 
@@ -306,6 +330,7 @@ function aggiornaTabella() {
 
   document.getElementById('bozza-info').innerHTML =
     `<span class="testo-soft">Nel portafoglio: <strong>${stato.bozza.length}</strong></span>
+     ${stato.bozza.length > 0 ? '<button class="link-btn" data-azione="svuota">Svuota</button>' : ''}
      <button class="btn ${costruttoreAperto ? 'btn-secondario' : 'btn-primario'} btn-piccolo" data-azione="costruttore">Costruisci portafoglio</button>
      <button class="btn btn-secondario btn-piccolo" data-azione="vai-portafoglio">Vai al portafoglio</button>`;
 
@@ -355,8 +380,16 @@ radice.addEventListener('change', e => {
 });
 
 radice.addEventListener('click', e => {
-  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-preset]');
+  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-preset], [data-flusso]');
   if (!el) return;
+
+  if (el.dataset.flusso) {
+    const f = Number(el.dataset.flusso);
+    if (flussoAttivi.has(f)) flussoAttivi.delete(f); else flussoAttivi.add(f);
+    visibili = PASSO;
+    aggiornaTabella();
+    return;
+  }
 
   if (el.dataset.preset) {
     const id = el.dataset.preset;
@@ -391,6 +424,11 @@ radice.addEventListener('click', e => {
   }
 
   switch (el.dataset.azione) {
+    case 'svuota':
+      if (stato.bozza.length > 0 && confirm('Togliere tutti i ' + stato.bozza.length + ' titoli dal portafoglio?')) {
+        impostaBozza([]);
+      }
+      break;
     case 'costruttore':
       costruttoreAperto = !costruttoreAperto;
       disegnaCostruttore();
@@ -401,6 +439,7 @@ radice.addEventListener('click', e => {
       break;
     case 'togli-preset':
       presetAttivi = new Set();
+      flussoAttivi = new Set();
       visibili = PASSO;
       aggiornaTabella();
       break;
