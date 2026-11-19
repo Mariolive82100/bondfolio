@@ -92,6 +92,21 @@ function disegna() {
     <div class="portafoglio">
       ${intestazioneModo}
 
+      ${tot.escluse > 0 ? `<div class="messaggio messaggio-avviso" id="avviso-escluse"></div>` : ''}
+
+      <section class="card tabella-card">
+        <div class="tabella-scroll"><div class="tabella tabella-portafoglio">
+          <div class="riga-testa">
+            <div>Titolo</div><div>Scadenza</div><div class="num">Cedola netta</div><div class="num">Prezzo</div>
+            <div class="num">Rend. lordo</div><div class="num">Rend. netto</div><div class="num">Duration</div>
+            <div class="num">Lotto min.</div><div class="num">Nominale</div><div class="num">Peso</div>
+            <div class="num">Cedola annua netta</div><div></div>
+          </div>
+          ${posizioni.map(riga).join('')}
+        </div></div>
+        <div class="tabella-piede nota-tabella">Puoi scrivere il <strong>nominale</strong> oppure la <strong>cedola annua netta</strong> che vuoi incassare (in euro): l'altro valore si calcola da solo. Dalla cedola il nominale è arrotondato per eccesso a un multiplo del taglio minimo, quindi la cedola può risultare un po' più alta di quella scritta.</div>
+      </section>
+
       <div class="riepilogo">
         <div class="card"><div class="testo-soft">Nominale totale</div><div class="valore" id="t-nominale"></div></div>
         <div class="card"><div class="testo-soft">Numero titoli</div><div class="valore" id="t-numero"></div></div>
@@ -119,21 +134,6 @@ function disegna() {
           <div id="g-cedole"></div>
         </section>
       </div>
-
-      ${tot.escluse > 0 ? `<div class="messaggio messaggio-avviso" id="avviso-escluse"></div>` : ''}
-
-      <section class="card tabella-card">
-        <div class="tabella-scroll"><div class="tabella tabella-portafoglio">
-          <div class="riga-testa">
-            <div>Titolo</div><div>Scadenza</div><div class="num">Cedola netta</div><div class="num">Prezzo</div>
-            <div class="num">Rend. lordo</div><div class="num">Rend. netto</div><div class="num">Duration</div>
-            <div class="num">Lotto min.</div><div class="num">Nominale</div><div class="num">Peso</div>
-            <div class="num">Cedola annua netta</div><div></div>
-          </div>
-          ${posizioni.map(riga).join('')}
-        </div></div>
-        <div class="tabella-piede nota-tabella">Puoi scrivere il <strong>nominale</strong> oppure la <strong>cedola annua netta</strong> che vuoi incassare (in euro): l'altro valore si calcola da solo. Dalla cedola il nominale è arrotondato per eccesso a un multiplo del taglio minimo, quindi la cedola può risultare un po' più alta di quella scritta.</div>
-      </section>
     </div>`;
 
   aggiornaNumeri();
