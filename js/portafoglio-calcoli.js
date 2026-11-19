@@ -20,20 +20,23 @@ export function risolviPosizioni(bozza, titoli) {
       titolo: titolo,
       valida: valida,
       motivo: motivo,
-      cedolaAnnua: valida ? b.nominale * (titolo.cedola || 0) / 100 : 0
+      cedolaAnnua: valida ? b.nominale * (titolo.cedola || 0) / 100 : 0,
+      // quanto costa comprarlo: nominale x prezzo / 100 (il prezzo è per 100 di nominale)
+      controvalore: valida ? b.nominale * (titolo.prezzo || 0) / 100 : 0
     };
   });
 }
 
 export function calcolaTotali(posizioni) {
-  let nominale = 0, cedoleAnnue = 0, numero = 0;
+  let nominale = 0, cedoleAnnue = 0, numero = 0, controvalore = 0;
   posizioni.forEach(p => {
     if (!p.valida) return;
     nominale += p.nominale;
     cedoleAnnue += p.cedolaAnnua;
+    controvalore += p.controvalore;
     numero += 1;
   });
-  return { nominale: nominale, cedoleAnnue: cedoleAnnue, numero: numero, escluse: posizioni.length - numero };
+  return { nominale: nominale, cedoleAnnue: cedoleAnnue, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
 }
 
 // Peso percentuale sul nominale totale dei titoli validi

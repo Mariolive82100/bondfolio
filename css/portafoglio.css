@@ -36,3 +36,13 @@
   font-size: 13px;
 }
 .btn-x:hover { border-color: #9A2B1A; color: #9A2B1A; }
+
+.input-capitale {
+  width: 100%; height: 38px; padding: 0 10px;
+  border: 1px solid #8A94A3; border-radius: 8px;
+  font-family: inherit; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--testo); background: #fff;
+}
+.input-capitale:focus { outline: 2px solid var(--accento); outline-offset: 0; }
+.valore.negativo { color: #9A2B1A; }
+.riepilogo .card { flex-basis: 170px; }

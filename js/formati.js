@@ -21,3 +21,10 @@ export function fmtData(iso) {
   const p = iso.split('-');
   return p[2] + '/' + p[1] + '/' + p[0];
 }
+
+// "50.000" o "50000,5" -> 50000 (euro interi); vuoto o non valido -> null
+export function leggiEuro(testo) {
+  const pulito = String(testo).trim().replace(/[\s.]/g, '').replace(',', '.');
+  const n = parseFloat(pulito);
+  return Number.isNaN(n) || n <= 0 ? null : Math.round(n);
+}

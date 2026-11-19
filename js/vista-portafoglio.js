@@ -1,8 +1,8 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
-import { stato, impostaBozza } from './state.js';
+import { stato, impostaBozza, impostaImpostazioni } from './state.js';
 import { risolviPosizioni, calcolaTotali, peso } from './portafoglio-calcoli.js';
-import { esc, fmtNum, fmtData } from './formati.js';
+import { esc, fmtNum, fmtData, leggiEuro } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -86,6 +86,11 @@ function disegna() {
         <div class="card"><div class="testo-soft">Nominale totale</div><div class="valore" id="t-nominale"></div></div>
         <div class="card"><div class="testo-soft">Numero titoli</div><div class="valore" id="t-numero"></div></div>
         <div class="card"><div class="testo-soft">Cedole annue lorde</div><div class="valore" id="t-cedole"></div></div>
+        <div class="card"><div class="testo-soft">Capitale impiegato (stima)</div><div class="valore" id="t-controvalore"></div></div>
+        <div class="card"><label class="testo-soft" for="p-capitale">Capitale disponibile (€)</label>
+          <input id="p-capitale" class="input-capitale" inputmode="numeric" placeholder="es. 50.000"
+            value="${stato.impostazioni.capitale ? fmtNum(stato.impostazioni.capitale, 0) : ''}"></div>
+        <div class="card"><div class="testo-soft">Liquidità residua</div><div class="valore" id="t-residuo"></div></div>
       </div>
 
       ${tot.escluse > 0 ? `<div class="messaggio messaggio-avviso" id="avviso-escluse"></div>` : ''}
@@ -121,6 +126,20 @@ function aggiornaNumeri() {
   set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
   set('t-numero', String(tot.numero));
   set('t-cedole', fmtNum(tot.cedoleAnnue) + ' €');
+  set('t-controvalore', fmtNum(tot.controvalore, 0) + ' €');
+
+  const capitale = stato.impostazioni.capitale;
+  const residuo = document.getElementById('t-residuo');
+  if (residuo) {
+    if (capitale > 0) {
+      const r = capitale - tot.controvalore;
+      residuo.textContent = fmtNum(r, 0) + ' €';
+      residuo.classList.toggle('negativo', r < 0);
+    } else {
+      residuo.textContent = '—';
+      residuo.classList.remove('negativo');
+    }
+  }
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file o non in euro). Puoi toglierlo con la ✕.'
     : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file o non in euro). Puoi toglierli con la ✕.');
@@ -131,6 +150,14 @@ function aggiornaNumeri() {
 // Cambio del nominale: si applica quando esci dalla casella o premi Invio
 radice.addEventListener('change', e => {
   const campo = e.target;
+
+  if (campo.id === 'p-capitale') {
+    const n = leggiEuro(campo.value);
+    impostaImpostazioni({ capitale: n });
+    campo.value = n === null ? '' : fmtNum(n, 0);
+    return;
+  }
+
   if (!campo.classList.contains('input-nominale')) return;
 
   const isin = campo.dataset.isin;
@@ -169,6 +196,15 @@ radice.addEventListener('click', e => {
     case 'vai-selezione': vai('selezione'); break;
     case 'vai-dati': vai('dati'); break;
   }
+});
+
+// Il capitale può cambiare anche dalla schermata Selezione
+document.addEventListener('impostazioni-aggiornate', () => {
+  const campo = document.getElementById('p-capitale');
+  if (campo && document.activeElement !== campo) {
+    campo.value = stato.impostazioni.capitale ? fmtNum(stato.impostazioni.capitale, 0) : '';
+  }
+  if (document.getElementById('t-nominale')) aggiornaNumeri();
 });
 
 document.addEventListener('dati-aggiornati', disegna);

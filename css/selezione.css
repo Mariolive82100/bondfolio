@@ -88,3 +88,11 @@
   flex-basis: 100%; padding: 8px 12px; border-radius: 8px;
   background: #FEF3C7; color: #92400E; font-size: 13px;
 }
+
+/* ---------- Costruzione automatica ---------- */
+.costruttore { padding: 14px 20px; border-bottom: 1px solid var(--bordo); background: #F8FAF9; display: flex; flex-direction: column; gap: 10px; }
+.costruttore[hidden] { display: none; }
+.costruttore-campi { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.costruttore-campi .campo { flex: 1 1 130px; min-width: 120px; }
+.costruttore .messaggio { margin-top: 0; }
+.messaggio-ok { background: #E3F1ED; color: #0B5A4A; }

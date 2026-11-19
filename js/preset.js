@@ -37,7 +37,7 @@ export function eSoglia(id) {
   return !!p && p.tipo === 'soglia';
 }
 
-function efficienza(t) {
+export function efficienza(t) {
   if (t.rendNetto === null || t.rendNetto === undefined) return null;
   if (!(t.durationLorda > 0)) return null;
   return t.rendNetto / t.durationLorda;
