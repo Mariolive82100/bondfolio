@@ -28,13 +28,28 @@ export function tipoEmittente(t) {
   return 'corp';
 }
 
-// Aliquota sulle cedole: 12,5% per governativi e sovranazionali, 26% per i societari.
-// (Semplificazione: non distingue i governativi di Paesi fuori dalla white list, tassati al 26%)
+// Aliquota sulle cedole:
+// - 12,5% per i governativi di Paesi nella "white list" (D.M. 4/9/1996, come sostituita dal D.M. 9/8/2016) e per i sovranazionali
+// - 26% per i societari e per i governativi di Paesi fuori dalla white list (oggi nel tuo file: Cile, Perù, Bahrain)
+// Un Paese non riconosciuto dall'elenco qui sotto è trattato al 26% (scelta prudente).
 export const ALIQUOTA_AGEVOLATA = 12.5;
 export const ALIQUOTA_ORDINARIA = 26;
 
+// Codici dei Paesi in white list (la parte dopo "GOV_" nel codice emittente)
+const PAESI_WHITE_LIST = new Set([
+  'AL', 'DZ', 'AR', 'AM', 'AU', 'AT', 'AZ', 'BD', 'BE', 'BY', 'BA', 'BR', 'BG', 'CM', 'CA', 'CN', 'CY', 'CO', 'CG',
+  'KR', 'CI', 'CR', 'HR', 'DK', 'EC', 'EG', 'AE', 'EE', 'ET', 'RU', 'PH', 'FI', 'FR', 'GE', 'DE', 'GH', 'JP', 'JO',
+  'GR', 'HK', 'IN', 'ID', 'IE', 'IS', 'IL', 'IT', 'KZ', 'KG', 'KW', 'LV', 'LB', 'LI', 'LT', 'LU', 'MK', 'MY', 'MT',
+  'MA', 'MU', 'MX', 'MD', 'ME', 'MZ', 'NG', 'NO', 'NZ', 'OM', 'NL', 'PK', 'PL', 'PT', 'QA', 'GB', 'UK', 'CZ', 'SK',
+  'RO', 'SM', 'SN', 'RS', 'SG', 'SI', 'ES', 'LK', 'US', 'ZA', 'SE', 'CH', 'TJ', 'TW', 'TZ', 'TH', 'TT', 'TN', 'TR',
+  'TM', 'UA', 'UG', 'HU', 'UZ', 'VE', 'VN', 'ZM', 'SA'
+]);
+
 export function aliquota(t) {
-  return tipoEmittente(t) === 'corp' ? ALIQUOTA_ORDINARIA : ALIQUOTA_AGEVOLATA;
+  const tipo = tipoEmittente(t);
+  if (tipo === 'sov') return ALIQUOTA_AGEVOLATA;
+  if (tipo === 'gov') return PAESI_WHITE_LIST.has(t.emittenteCodice.slice(4)) ? ALIQUOTA_AGEVOLATA : ALIQUOTA_ORDINARIA;
+  return ALIQUOTA_ORDINARIA;
 }
 
 // Cedola al netto delle tasse, in percentuale (3,00 con aliquota 12,5% -> 2,625)

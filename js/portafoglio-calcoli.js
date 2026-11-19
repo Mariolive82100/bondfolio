@@ -30,15 +30,15 @@ export function risolviPosizioni(bozza, titoli) {
   });
 }
 
-// Media ponderata per nominale di un campo del titolo (es. 'rendNetto'); ignora i titoli senza quel dato
+// Media ponderata per controvalore (nominale x prezzo / 100) di un campo del titolo (es. 'rendNetto'); ignora i titoli senza quel dato
 function mediaPonderata(posizioni, campo) {
   let somma = 0, pesi = 0;
   posizioni.forEach(p => {
     if (!p.valida) return;
     const v = p.titolo[campo];
     if (v === null || v === undefined) return;
-    somma += v * p.nominale;
-    pesi += p.nominale;
+    somma += v * p.controvalore;
+    pesi += p.controvalore;
   });
   return pesi > 0 ? somma / pesi : null;
 }
