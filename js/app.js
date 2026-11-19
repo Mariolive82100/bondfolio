@@ -1,5 +1,6 @@
 // Gestione della navigazione tra le 4 schermate
 
+import { VERSIONE } from './versione.js';
 import './vista-dati.js';
 
 const TESTI = {
@@ -13,6 +14,8 @@ const voci = document.querySelectorAll('.nav-item');
 const viste = document.querySelectorAll('.view');
 const titolo = document.getElementById('titolo');
 const sottotitolo = document.getElementById('sottotitolo');
+
+document.getElementById('versione').textContent = 'v' + VERSIONE;
 
 function mostra(nome) {
   voci.forEach(v => v.classList.toggle('is-active', v.dataset.view === nome));
