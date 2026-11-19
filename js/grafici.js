@@ -26,6 +26,27 @@ export function graficoColonne(voci) {
   return `<div class="colonne">${colonne}</div>`;
 }
 
+// Colonne impilate (due parti sopra la stessa colonna). voci = [{ etichetta, parti: [a, b], titolo }]; nomiParti = ['Cedole', 'Rimborsi']
+export function graficoColonneImpilate(voci, nomiParti) {
+  const totale = v => v.parti.reduce((s, x) => s + x, 0);
+  const max = Math.max(0, ...voci.map(totale));
+  const molte = voci.length > 12;
+  const passo = Math.ceil(voci.length / 12);
+  const colonne = voci.map((v, i) => {
+    const segmenti = v.parti.map((x, k) => {
+      const h = max > 0 && x > 0 ? Math.max(1.5, x / max * 100) : 0;
+      return `<div class="seg seg-${k}" style="height:${h.toFixed(1)}%"></div>`;
+    }).join('');
+    return `<div class="colonna" title="${esc(v.titolo)}">
+      <span class="col-valore">${totale(v) > 0 && !molte ? compatto(totale(v)) : ''}</span>
+      <div class="col-area col-impilata">${segmenti}</div>
+      <span class="col-etichetta">${!molte || i % passo === 0 ? esc(v.etichetta) : '&nbsp;'}</span>
+    </div>`;
+  }).join('');
+  const legenda = nomiParti.map((n, k) => `<span class="leg-voce"><span class="torta-colore seg-${k}"></span>${esc(n)}</span>`).join('');
+  return `<div class="leg-righe">${legenda}</div><div class="colonne">${colonne}</div>`;
+}
+
 // Grafico a torta (ad anello), interattivo: passando il mouse su una fetta o su una voce della legenda
 // la fetta si evidenzia e al centro compaiono nome, percentuale e importo.
 // fette = [{ nome, pct, valoreTesto, altri }]; centro = { titolo, sotto } (testo mostrato quando non c'è nulla di evidenziato)

@@ -210,3 +210,44 @@ export function incassiMensili(posizioni) {
   });
   return { mesi: mesi, nonCollocati: nonCollocati };
 }
+
+// Flusso di cassa per anno, dal primo anno ancora da incassare fino all'ultima scadenza: [{ anno, cedole, rimborsi }]
+// - cedole = cedole nette in euro; rimborsi = nominale restituito alla scadenza (al 100%).
+// - Si contano solo le cedole dei mesi ancora da venire (primo anno: dopo il mese di riferimento) e, nell'anno di scadenza,
+//   quelle fino al mese di scadenza compreso. Se il file non dà i mesi di pagamento, la cedola è spalmata in proporzione ai mesi dell'anno interessati.
+export function flussoAnnuo(posizioni, dataRif) {
+  const rif = dataRif ? new Date(dataRif + 'T00:00:00') : new Date();
+  const annoRif = rif.getFullYear(), meseRif = rif.getMonth() + 1;
+  const perAnno = new Map();
+  const aggiungi = (anno, campo, v) => {
+    const r = perAnno.get(anno) || { anno: anno, cedole: 0, rimborsi: 0 };
+    r[campo] += v;
+    perAnno.set(anno, r);
+  };
+
+  posizioni.forEach(p => {
+    if (!p.valida || !p.titolo.scadenza) return;
+    const annoScad = Number(p.titolo.scadenza.slice(0, 4));
+    const meseScad = Number(p.titolo.scadenza.slice(5, 7));
+    if (annoScad < annoRif || (annoScad === annoRif && meseScad <= meseRif)) return; // già scaduto rispetto al file
+
+    aggiungi(annoScad, 'rimborsi', p.nominale);
+    const mesi = p.titolo.mesiCedola || [];
+    for (let anno = annoRif; anno <= annoScad; anno++) {
+      const da = anno === annoRif ? meseRif + 1 : 1;
+      const a = anno === annoScad ? meseScad : 12;
+      if (a < da) continue;
+      let quota;
+      if (mesi.length > 0) quota = mesi.filter(m => m >= da && m <= a).length / mesi.length;
+      else quota = (a - da + 1) / 12;
+      if (quota > 0) aggiungi(anno, 'cedole', p.cedolaAnnuaNetta * quota);
+    }
+  });
+
+  if (perAnno.size === 0) return [];
+  const anni = Array.from(perAnno.keys());
+  const primo = Math.min(...anni), ultimo = Math.max(...anni);
+  const lista = [];
+  for (let a = primo; a <= ultimo; a++) lista.push(perAnno.get(a) || { anno: a, cedole: 0, rimborsi: 0 });
+  return lista;
+}

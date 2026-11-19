@@ -1,8 +1,8 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
 import { stato, impostaBozza } from './state.js';
-import { risolviPosizioni, calcolaTotali, calcolaIndicatori, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, pesoPerTitolo, pesoPerTipo, pesoPerRating, incassiMensili } from './portafoglio-calcoli.js';
-import { graficoColonne, graficoTorta, graficoVuoto } from './grafici.js';
+import { risolviPosizioni, calcolaTotali, calcolaIndicatori, peso, lottoMinimo, nominaleDaCedolaNetta, scalettaScadenze, pesoPerEmittente, pesoPerTitolo, pesoPerTipo, pesoPerRating, incassiMensili, flussoAnnuo } from './portafoglio-calcoli.js';
+import { graficoColonne, graficoColonneImpilate, graficoTorta, graficoVuoto } from './grafici.js';
 import { cedolaNetta } from './filtri.js';
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, fmtData, leggiDecimale, NOMI_MESI } from './formati.js';
@@ -122,6 +122,11 @@ function disegna() {
       </div>
 
       <div class="grafici">
+        <section class="card card-largo">
+          <div class="card-titolo">Flusso di cassa per anno</div>
+          <div class="testo-soft" id="g-flusso-nota"></div>
+          <div id="g-flusso"></div>
+        </section>
         <section class="card">
           <div class="card-titolo">Scaletta delle scadenze</div>
           <div class="testo-soft">Nominale per anno di scadenza (€)</div>
@@ -199,6 +204,16 @@ function aggiornaNumeri() {
 // Ridisegna i grafici (a ogni modifica dei nominali)
 function aggiornaGrafici(posizioni) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+  const flusso = flussoAnnuo(posizioni, stato.meta && stato.meta.dataRiferimento);
+  metti('g-flusso', flusso.length === 0 ? graficoVuoto('Nessun dato') : graficoColonneImpilate(flusso.map(x => ({
+    etichetta: String(x.anno),
+    parti: [x.cedole, x.rimborsi],
+    titolo: x.anno + ': cedole nette ' + fmtNum(x.cedole) + ' € + rimborsi ' + fmtNum(x.rimborsi) + ' € = ' + fmtNum(x.cedole + x.rimborsi) + ' €'
+  })), ['Cedole nette', 'Rimborsi a scadenza']));
+  const totCedole = flusso.reduce((s, x) => s + x.cedole, 0), totRimborsi = flusso.reduce((s, x) => s + x.rimborsi, 0);
+  metti('g-flusso-nota', flusso.length === 0 ? '' :
+    'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (rimborso al 100%, cedole dai mesi ancora da pagare)');
 
   const scadenze = scalettaScadenze(posizioni);
   metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoColonne(scadenze.map(x => ({

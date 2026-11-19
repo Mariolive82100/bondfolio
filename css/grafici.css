@@ -12,6 +12,18 @@
 .colonna:hover .col-barra { background: #09594A; }
 .col-etichetta { font-size: 10px; color: var(--testo-soft); white-space: nowrap; overflow: visible; }
 
+/* Colonne impilate (flusso di cassa) */
+.grafici .card-largo { grid-column: 1 / -1; }
+.col-impilata { flex-direction: column-reverse; }
+.seg { width: 100%; }
+.seg-0 { background: var(--accento); }
+.seg-1 { background: #3B82C4; border-radius: 4px 4px 0 0; }
+.col-impilata .seg-0:only-child { border-radius: 4px 4px 0 0; }
+.colonna:hover .seg { filter: brightness(0.85); }
+.leg-righe { display: flex; gap: 16px; font-size: 12px; margin-bottom: 8px; }
+.leg-voce { display: inline-flex; align-items: center; gap: 6px; }
+.card-largo .col-area { height: 150px; }
+
 /* Torte (anello) */
 .torta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; }
 .torta-disegno { position: relative; width: 190px; height: 190px; flex: 0 0 auto; }
