@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BondFolio</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">B</span>
+        <span class="brand-name">BondFolio</span>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item is-active" data-view="dati">
+          <span class="nav-num">1</span>
+          <span class="nav-text"><strong>Dati</strong><small>Carica il file MOT</small></span>
+        </button>
+        <button class="nav-item" data-view="selezione">
+          <span class="nav-num">2</span>
+          <span class="nav-text"><strong>Selezione</strong><small>Filtra le obbligazioni</small></span>
+        </button>
+        <button class="nav-item" data-view="portafoglio">
+          <span class="nav-num">3</span>
+          <span class="nav-text"><strong>Portafoglio</strong><small>Pesi e importi</small></span>
+        </button>
+        <button class="nav-item" data-view="analisi">
+          <span class="nav-num">4</span>
+          <span class="nav-text"><strong>Analisi</strong><small>Metriche e cedole</small></span>
+        </button>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>Elaborazione locale</strong>
+        <span>Il file resta nel tuo browser. Firebase salva solo i portafogli.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="titolo">Dati</h1>
+          <p id="sottotitolo"></p>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view" id="view-dati"><div class="card">Qui andrà il caricamento del file.</div></section>
+        <section class="view" id="view-selezione" hidden><div class="card">Qui andranno filtri e tabella dei titoli.</div></section>
+        <section class="view" id="view-portafoglio" hidden><div class="card">Qui andrà la composizione del portafoglio.</div></section>
+        <section class="view" id="view-analisi" hidden><div class="card">Qui andranno le metriche e i grafici.</div></section>
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
