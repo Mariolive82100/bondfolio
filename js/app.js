@@ -2,6 +2,7 @@
 
 import { VERSIONE } from './versione.js';
 import './vista-dati.js';
+import './vista-selezione.js';
 
 const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni scaricato da Simple Tools for Investors"],
@@ -29,4 +30,6 @@ voci.forEach(v => v.addEventListener('click', () => mostra(v.dataset.view)));
 // Le altre schermate possono chiedere di spostarsi su un'altra voce
 document.addEventListener('vai-a', e => mostra(e.detail));
 
-mostra('dati');
+// All'avvio: se i dati sono già nel browser parto dalla Selezione, altrimenti da Dati
+const datiPresenti = localStorage.getItem('bondfolio_dati_v1') !== null;
+mostra(datiPresenti ? 'selezione' : 'dati');
