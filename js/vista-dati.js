@@ -36,7 +36,7 @@ function disegna() {
       <div class="dropzone-titolo">Trascina qui il file CSV</div>
       <div class="dropzone-testo">Scaricato da Simple Tools for Investors con l'elenco delle obbligazioni MOT. Viene letto direttamente nel browser.</div>
       <button class="btn btn-primario" id="btn-scegli">Scegli file</button>
-      <input type="file" id="input-file" accept=".csv,.txt" hidden>
+      <input type="file" id="input-file" hidden>
     </div>`;
 
   if (messaggio) {
