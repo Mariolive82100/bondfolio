@@ -71,3 +71,18 @@
 .tabella-impatto { min-width: 0; max-width: 760px; }
 .tabella-impatto .riga, .tabella-impatto .riga-testa { grid-template-columns: minmax(180px, 2fr) 1fr 1fr 1fr; }
 .riepilogo-acquisti .valore { font-size: 22px; }
+
+/* ---------- Sezioni comprimibili ---------- */
+.sezione-testa {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 14px 20px; background: none; border: 0; border-radius: var(--raggio) var(--raggio) 0 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.sezione-testa:hover { background: #F8F9FA; }
+.sezione-testa .testo-soft { flex: 1; }
+.sezione-testa .freccia { color: var(--testo-soft); transition: transform 0.15s; }
+.card.chiusa .sezione-testa { border-radius: var(--raggio); }
+.card.chiusa .freccia { transform: rotate(-90deg); }
+.card.chiusa .tabella-scroll, .card.chiusa .tabella-piede { display: none; }
+.card:not(.chiusa) > .sezione-testa { border-bottom: 1px solid #EEF0F3; }
+#impatto-box:empty { display: none; }

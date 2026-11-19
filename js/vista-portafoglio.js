@@ -5,6 +5,7 @@ import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNet
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { htmlCostruito, aggiornaCostruito, htmlConferma, aggiornaConferma, aggiornaImpatto, inConferma, annullaConferma } from './vista-costruito.js';
 import { cedolaNetta } from './filtri.js';
+import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
@@ -112,7 +113,8 @@ function disegna() {
 
       ${tot.escluse > 0 ? `<div class="messaggio messaggio-avviso" id="avviso-escluse"></div>` : ''}
 
-      <section class="card tabella-card">
+      <section class="card tabella-card${classeChiusa('tab-bozza')}">
+        ${testaComprimibile('tab-bozza', 'Titoli in bozza', 'riassunto-bozza')}
         <div class="tabella-scroll"><div class="tabella tabella-portafoglio">
           <div class="riga-testa">
             <div>Titolo</div><div>Scadenza</div><div class="num">Cedola netta</div><div class="num">Prezzo</div>
@@ -150,6 +152,7 @@ function aggiornaNumeri() {
   });
 
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
+  set('riassunto-bozza', tot.numero + (tot.numero === 1 ? ' titolo' : ' titoli') + ' · nominale ' + fmtNum(tot.nominale, 0) + ' €');
   aggiornaPannelloAnalisi(posizioni, tot, stato.meta && stato.meta.dataRiferimento);
   aggiornaImpatto();
 

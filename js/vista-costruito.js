@@ -8,6 +8,7 @@ import { sommaPerIsin, riepilogoAcquisti, rendDopoCommissioni, impattoAggiunta }
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, fmtData, leggiNumero, oggiIso } from './formati.js';
+import { testaComprimibile, classeChiusa } from './comprimibile.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -162,7 +163,8 @@ export function htmlCostruito() {
       <div class="card"><div class="testo-soft">Rendimento netto dopo commissioni (stima)</div><div class="valore" id="r-rend-comm"></div><div class="testo-soft" id="r-rend-comm-nota"></div></div>
     </div>
 
-    <section class="card tabella-card">
+    <section class="card tabella-card${classeChiusa('tab-costruito')}">
+      ${testaComprimibile('tab-costruito', 'Acquisti', 'riassunto-costruito')}
       <div class="tabella-scroll"><div class="tabella tabella-costruito">
         <div class="riga-testa">
           <div>Titolo</div><div>Data acquisto</div><div class="num">Nominale</div><div class="num">Prezzo carico</div>
@@ -184,6 +186,7 @@ export function aggiornaCostruito() {
   const r = riepilogoAcquisti(stato.costruito, stato.titoli);
   const ind = calcolaIndicatori(posizioni, dataRiferimento());
 
+  set('riassunto-costruito', stato.costruito.length + (stato.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' · capitale investito ' + fmtNum(r.capitaleInvestito, 0) + ' €');
   set('r-investito', fmtNum(r.capitaleInvestito, 0) + ' €');
   set('r-investito-nota', 'titoli ' + fmtNum(r.costoTitoli, 0) + ' € + commissioni ' + fmtNum(r.commissioni, 0) + ' €');
   set('r-valore', fmtNum(r.valoreOggi, 0) + ' €');
