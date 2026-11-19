@@ -1,5 +1,7 @@
 // Gestione della navigazione tra le 4 schermate
 
+import './vista-dati.js';
+
 const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni scaricato da Simple Tools for Investors"],
   selezione: ['Selezione', 'Filtra le obbligazioni e aggiungile al portafoglio'],
@@ -20,5 +22,8 @@ function mostra(nome) {
 }
 
 voci.forEach(v => v.addEventListener('click', () => mostra(v.dataset.view)));
+
+// Le altre schermate possono chiedere di spostarsi su un'altra voce
+document.addEventListener('vai-a', e => mostra(e.detail));
 
 mostra('dati');
