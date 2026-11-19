@@ -68,3 +68,23 @@
 
 .vuoto { text-align: center; padding: 40px 20px; color: var(--testo-soft); }
 .vuoto p { margin-bottom: 8px; }
+
+/* ---------- Preset ---------- */
+.preset-barra {
+  padding: 12px 20px; border-bottom: 1px solid var(--bordo);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.preset-titolo { font-size: 12px; font-weight: 600; color: var(--testo-soft); margin-right: 4px; }
+.chip-preset {
+  height: 32px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid #8A94A3; background: #fff; color: var(--testo);
+  font-size: 13px; font-weight: 500;
+}
+.chip-preset .chip-n { margin-left: 4px; color: var(--testo-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+.chip-preset.is-attivo { background: var(--accento); border-color: var(--accento); color: #fff; }
+.chip-preset.is-attivo .chip-n { color: #D5EDE6; }
+.chip-preset.is-vuoto { color: #98A2B3; border-color: #D0D5DD; }
+.preset-avviso {
+  flex-basis: 100%; padding: 8px 12px; border-radius: 8px;
+  background: #FEF3C7; color: #92400E; font-size: 13px;
+}

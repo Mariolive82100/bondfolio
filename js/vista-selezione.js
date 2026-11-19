@@ -5,6 +5,7 @@ import { FILTRI_INIZIALI, applicaFiltri, ordina } from './filtri.js';
 import { ordinaleTitolo, etichettaRating } from './rating.js';
 import { esc, fmtNum, fmtData } from './formati.js';
 import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
+import { PRESET, nomePreset, eSoglia, calcolaSoglie, passaPreset, applicaPreset, riduciPerEmittente } from './preset.js';
 
 const radice = document.getElementById('view-selezione');
 const PASSO = 100; // righe mostrate alla volta
@@ -12,6 +13,9 @@ const PASSO = 100; // righe mostrate alla volta
 let filtri = Object.assign({}, FILTRI_INIZIALI);
 let ordine = { campo: 'rendNetto', verso: -1 };
 let visibili = PASSO;
+let presetAttivi = new Set();   // preset scelti (si combinano in AND)
+let soglie = null;              // fasce dei preset, calcolate sui titoli del file
+let soglieSu = null;
 
 const COLONNE = [
   { campo: 'nome', titolo: 'Titolo', verso: 1 },
@@ -115,6 +119,7 @@ function disegna() {
           <div id="conteggio"></div>
           <div id="bozza-info" class="bozza-info"></div>
         </div>
+        <div class="preset-barra" id="preset-barra"></div>
         <div class="tabella-scroll"><div class="tabella" id="tabella"></div></div>
         <div class="tabella-piede" id="piede"></div>
       </section>
@@ -172,11 +177,55 @@ function intestazione() {
   return `<div class="riga-testa">${celle}<div></div></div>`;
 }
 
+/* ---------- Preset ---------- */
+
+function disegnaPreset(base, idSoglia, trovati) {
+  const barra = document.getElementById('preset-barra');
+  if (!barra) return;
+
+  const chips = PRESET.map(p => {
+    const attivo = presetAttivi.has(p.id);
+    let conto = '';
+    let vuoto = false;
+    if (p.tipo === 'soglia') {
+      const n = base.filter(t => passaPreset(p.id, t, soglie)).length;
+      conto = ` <span class="chip-n">${n}</span>`;
+      vuoto = n === 0 && !attivo;
+    }
+    return `<button class="chip-preset ${attivo ? 'is-attivo' : ''} ${vuoto ? 'is-vuoto' : ''}"
+      data-preset="${p.id}" title="${esc(p.info)}" aria-pressed="${attivo}">${esc(p.nome)}${conto}</button>`;
+  }).join('');
+
+  const togli = presetAttivi.size > 0
+    ? '<button class="link-btn" data-azione="togli-preset">Togli i preset</button>' : '';
+
+  let avviso = '';
+  if (idSoglia.length > 0 && trovati === 0) {
+    // Cerco quale preset, tolto, fa tornare dei risultati
+    const aiuti = idSoglia
+      .map(id => ({ id: id, n: applicaPreset(base, idSoglia.filter(x => x !== id), soglie).length }))
+      .filter(x => x.n > 0)
+      .map(x => `togliendo «${esc(nomePreset(x.id))}» ottieni ${x.n.toLocaleString('it-IT')} titoli`);
+    avviso = `<div class="preset-avviso">Nessun titolo rispetta questa combinazione.` +
+      (idSoglia.length > 1 && aiuti.length > 0 ? ' Prova così: ' + aiuti.join('; ') + '.' : '') + '</div>';
+  }
+
+  barra.innerHTML = `<span class="preset-titolo">Preset</span>${chips}${togli}${avviso}`;
+}
+
 function aggiornaTabella() {
   const contenitore = document.getElementById('tabella');
   if (!contenitore) return;
 
-  const filtrati = ordina(applicaFiltri(stato.titoli, filtri), ordine);
+  if (soglieSu !== stato.titoli) { soglie = calcolaSoglie(stato.titoli); soglieSu = stato.titoli; }
+
+  const base = applicaFiltri(stato.titoli, filtri);
+  const idSoglia = Array.from(presetAttivi).filter(eSoglia);
+  const dopoPreset = applicaPreset(base, idSoglia, soglie);
+  let filtrati = ordina(dopoPreset, ordine);
+  if (presetAttivi.has('emittente')) filtrati = riduciPerEmittente(filtrati);
+
+  disegnaPreset(base, idSoglia, dopoPreset.length);
   const mostrati = filtrati.slice(0, visibili);
   const inBozza = new Set(stato.bozza.map(b => b.isin));
 
@@ -210,8 +259,16 @@ radice.addEventListener('input', e => {
 });
 
 radice.addEventListener('click', e => {
-  const el = e.target.closest('[data-isin], [data-campo], [data-azione]');
+  const el = e.target.closest('[data-isin], [data-campo], [data-azione], [data-preset]');
   if (!el) return;
+
+  if (el.dataset.preset) {
+    const id = el.dataset.preset;
+    if (presetAttivi.has(id)) presetAttivi.delete(id); else presetAttivi.add(id);
+    visibili = PASSO;
+    aggiornaTabella();
+    return;
+  }
 
   if (el.dataset.isin) {
     const isin = el.dataset.isin;
@@ -238,6 +295,11 @@ radice.addEventListener('click', e => {
   }
 
   switch (el.dataset.azione) {
+    case 'togli-preset':
+      presetAttivi = new Set();
+      visibili = PASSO;
+      aggiornaTabella();
+      break;
     case 'azzera':
       filtri = Object.assign({}, FILTRI_INIZIALI);
       visibili = PASSO;
