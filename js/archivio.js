@@ -45,24 +45,3 @@ export function caricaBozza() {
     return [];
   }
 }
-
-const CHIAVE_IMPOSTAZIONI = 'bondfolio_impostazioni_v1';
-
-export function salvaImpostazioni(oggetto) {
-  try {
-    localStorage.setItem(CHIAVE_IMPOSTAZIONI, JSON.stringify(oggetto));
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-export function caricaImpostazioni() {
-  try {
-    const testo = localStorage.getItem(CHIAVE_IMPOSTAZIONI);
-    const o = testo ? JSON.parse(testo) : {};
-    return o && typeof o === 'object' ? o : {};
-  } catch (e) {
-    return {};
-  }
-}

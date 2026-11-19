@@ -30,6 +30,19 @@ export function risolviPosizioni(bozza, titoli) {
   });
 }
 
+// Media ponderata per nominale di un campo del titolo (es. 'rendNetto'); ignora i titoli senza quel dato
+function mediaPonderata(posizioni, campo) {
+  let somma = 0, pesi = 0;
+  posizioni.forEach(p => {
+    if (!p.valida) return;
+    const v = p.titolo[campo];
+    if (v === null || v === undefined) return;
+    somma += v * p.nominale;
+    pesi += p.nominale;
+  });
+  return pesi > 0 ? somma / pesi : null;
+}
+
 export function calcolaTotali(posizioni) {
   let nominale = 0, cedoleAnnue = 0, cedoleNette = 0, numero = 0, controvalore = 0;
   posizioni.forEach(p => {
@@ -40,7 +53,11 @@ export function calcolaTotali(posizioni) {
     controvalore += p.controvalore;
     numero += 1;
   });
-  return { nominale: nominale, cedoleAnnue: cedoleAnnue, cedoleNette: cedoleNette, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
+  return {
+    rendLordo: mediaPonderata(posizioni, 'rendLordo'),
+    rendNetto: mediaPonderata(posizioni, 'rendNetto'),
+    duration: mediaPonderata(posizioni, 'durationLorda'),
+    nominale: nominale, cedoleAnnue: cedoleAnnue, cedoleNette: cedoleNette, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
 }
 
 // Peso percentuale sul nominale totale dei titoli validi

@@ -1,9 +1,9 @@
 // Schermata 3: portafoglio (bozza e, più avanti, portafoglio costruito)
 
-import { stato, impostaBozza, impostaImpostazioni } from './state.js';
+import { stato, impostaBozza } from './state.js';
 import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta } from './portafoglio-calcoli.js';
 import { cedolaNetta } from './filtri.js';
-import { esc, fmtNum, fmtData, leggiEuro, leggiDecimale } from './formati.js';
+import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -30,11 +30,13 @@ function riga(p) {
       <div>${fmtData(t.scadenza)}</div>
       <div class="num">${fmtNum(cedolaNetta(t))}%</div>
       <div class="num">${fmtNum(t.prezzo)}</div>
+      <div class="num">${fmtNum(t.rendLordo)}%</div>
+      <div class="num forte">${fmtNum(t.rendNetto)}%</div>
+      <div class="num">${fmtNum(t.durationLorda, 1)}</div>
       <div class="num">${fmtNum(t.lottoMinimo, 0)}</div>
       <div class="num"><input class="input-nominale" type="text" inputmode="numeric"
         data-isin="${esc(p.isin)}" value="${fmtNum(p.nominale, 0)}" aria-label="Nominale"></div>
       <div class="num" data-peso="${esc(p.isin)}"></div>
-      <div class="num" data-cedole="${esc(p.isin)}"></div>
       <div class="num">${cedolaNetta(t) > 0
         ? `<input class="input-nominale input-cedola" type="text" inputmode="decimal"
             data-isin="${esc(p.isin)}" value="${fmtNum(p.cedolaAnnuaNetta)}" aria-label="Cedola annua netta in euro">`
@@ -93,13 +95,11 @@ function disegna() {
       <div class="riepilogo">
         <div class="card"><div class="testo-soft">Nominale totale</div><div class="valore" id="t-nominale"></div></div>
         <div class="card"><div class="testo-soft">Numero titoli</div><div class="valore" id="t-numero"></div></div>
-        <div class="card"><div class="testo-soft">Cedole annue lorde</div><div class="valore" id="t-cedole"></div></div>
         <div class="card"><div class="testo-soft">Cedole annue nette</div><div class="valore" id="t-cedole-nette"></div></div>
         <div class="card"><div class="testo-soft">Capitale impiegato (stima)</div><div class="valore" id="t-controvalore"></div></div>
-        <div class="card"><label class="testo-soft" for="p-capitale">Capitale disponibile (€)</label>
-          <input id="p-capitale" class="input-capitale" inputmode="numeric" placeholder="es. 50.000"
-            value="${stato.impostazioni.capitale ? fmtNum(stato.impostazioni.capitale, 0) : ''}"></div>
-        <div class="card"><div class="testo-soft">Liquidità residua</div><div class="valore" id="t-residuo"></div></div>
+        <div class="card"><div class="testo-soft">Rendimento lordo</div><div class="valore" id="t-rend-lordo"></div></div>
+        <div class="card"><div class="testo-soft">Rendimento netto</div><div class="valore" id="t-rend-netto"></div></div>
+        <div class="card"><div class="testo-soft">Duration</div><div class="valore" id="t-duration"></div></div>
       </div>
 
       ${tot.escluse > 0 ? `<div class="messaggio messaggio-avviso" id="avviso-escluse"></div>` : ''}
@@ -108,8 +108,9 @@ function disegna() {
         <div class="tabella-scroll"><div class="tabella tabella-portafoglio">
           <div class="riga-testa">
             <div>Titolo</div><div>Scadenza</div><div class="num">Cedola netta</div><div class="num">Prezzo</div>
+            <div class="num">Rend. lordo</div><div class="num">Rend. netto</div><div class="num">Duration</div>
             <div class="num">Lotto min.</div><div class="num">Nominale</div><div class="num">Peso</div>
-            <div class="num">Cedola annua lorda</div><div class="num">Cedola annua netta</div><div></div>
+            <div class="num">Cedola annua netta</div><div></div>
           </div>
           ${posizioni.map(riga).join('')}
         </div></div>
@@ -127,9 +128,7 @@ function aggiornaNumeri() {
 
   posizioni.forEach(p => {
     const cellaPeso = radice.querySelector(`[data-peso="${p.isin}"]`);
-    const cellaCedole = radice.querySelector(`[data-cedole="${p.isin}"]`);
     if (cellaPeso) { const w = peso(p, tot); cellaPeso.textContent = w === null ? '—' : fmtNum(w, 1) + '%'; }
-    if (cellaCedole) cellaCedole.textContent = fmtNum(p.cedolaAnnua) + ' €';
 
     // Le due caselle modificabili si allineano, tranne quella in cui stai scrivendo
     const inNominale = radice.querySelector(`input.input-nominale:not(.input-cedola)[data-isin="${p.isin}"]`);
@@ -141,22 +140,12 @@ function aggiornaNumeri() {
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
   set('t-numero', String(tot.numero));
-  set('t-cedole', fmtNum(tot.cedoleAnnue) + ' €');
   set('t-cedole-nette', fmtNum(tot.cedoleNette) + ' €');
   set('t-controvalore', fmtNum(tot.controvalore, 0) + ' €');
 
-  const capitale = stato.impostazioni.capitale;
-  const residuo = document.getElementById('t-residuo');
-  if (residuo) {
-    if (capitale > 0) {
-      const r = capitale - tot.controvalore;
-      residuo.textContent = fmtNum(r, 0) + ' €';
-      residuo.classList.toggle('negativo', r < 0);
-    } else {
-      residuo.textContent = '—';
-      residuo.classList.remove('negativo');
-    }
-  }
+  set('t-rend-lordo', tot.rendLordo === null ? '—' : fmtNum(tot.rendLordo) + '%');
+  set('t-rend-netto', tot.rendNetto === null ? '—' : fmtNum(tot.rendNetto) + '%');
+  set('t-duration', tot.duration === null ? '—' : fmtNum(tot.duration, 1) + ' anni');
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file o non in euro). Puoi toglierlo con la ✕.'
     : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file o non in euro). Puoi toglierli con la ✕.');
@@ -167,13 +156,6 @@ function aggiornaNumeri() {
 // Cambio del nominale: si applica quando esci dalla casella o premi Invio
 radice.addEventListener('change', e => {
   const campo = e.target;
-
-  if (campo.id === 'p-capitale') {
-    const n = leggiEuro(campo.value);
-    impostaImpostazioni({ capitale: n });
-    campo.value = n === null ? '' : fmtNum(n, 0);
-    return;
-  }
 
   if (!campo.classList.contains('input-nominale')) return;
 
@@ -230,15 +212,6 @@ radice.addEventListener('click', e => {
     case 'vai-selezione': vai('selezione'); break;
     case 'vai-dati': vai('dati'); break;
   }
-});
-
-// Il capitale può cambiare anche dalla schermata Selezione
-document.addEventListener('impostazioni-aggiornate', () => {
-  const campo = document.getElementById('p-capitale');
-  if (campo && document.activeElement !== campo) {
-    campo.value = stato.impostazioni.capitale ? fmtNum(stato.impostazioni.capitale, 0) : '';
-  }
-  if (document.getElementById('t-nominale')) aggiornaNumeri();
 });
 
 document.addEventListener('dati-aggiornati', disegna);

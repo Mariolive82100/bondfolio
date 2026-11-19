@@ -22,13 +22,6 @@ export function fmtData(iso) {
   return p[2] + '/' + p[1] + '/' + p[0];
 }
 
-// "50.000" o "50000,5" -> 50000 (euro interi); vuoto o non valido -> null
-export function leggiEuro(testo) {
-  const pulito = String(testo).trim().replace(/[\s.]/g, '').replace(',', '.');
-  const n = parseFloat(pulito);
-  return Number.isNaN(n) || n <= 0 ? null : Math.round(n);
-}
-
 export const NOMI_MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
 // "26,25" o "1.250,5" -> numero con decimali; vuoto o non valido -> null
