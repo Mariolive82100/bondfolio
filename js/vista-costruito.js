@@ -4,7 +4,7 @@
 
 import { stato, impostaBozza, impostaCostruito, correggiCostruito } from './state.js';
 import { risolviPosizioni, calcolaTotali, calcolaIndicatori, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
-import { sommaPerIsin, riepilogoAcquisti, rendDopoCommissioni, impattoAggiunta } from './costruito-calcoli.js';
+import { sommaPerIsin, riepilogoAcquisti, rendDopoCommissioni, impattoAggiunta, prezzoEsecuzione, prezzoCaricoDa } from './costruito-calcoli.js';
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, leggiNumero, oggiIso } from './formati.js';
@@ -48,12 +48,13 @@ export function htmlConferma() {
     <div class="riga" data-isin="${esc(p.isin)}" data-nominale="${p.nominale}">
       <div class="cella-titolo"><strong title="${esc(p.titolo.nome)}">${esc(p.titolo.nome)}</strong><small>${esc(p.isin)}${avviso}</small></div>
       <div class="num">${fmtNum(p.nominale, 0)}</div>
-      <div class="num"><input class="input-conferma in-carico" type="text" inputmode="decimal" value="${fmtNum(p.titolo.prezzo, 2)}" aria-label="Prezzo di carico"></div>
+      <div class="num"><input class="input-conferma in-carico" type="text" inputmode="decimal" value="${fmtNum(p.titolo.prezzo, 2)}" aria-label="Prezzo di esecuzione"></div>
       <div><input class="input-conferma in-data" type="date" value="${oggi}" aria-label="Data di acquisto"></div>
       <div><input class="input-conferma in-reg" type="date" value="${reg || ''}" aria-label="Data di regolamento"></div>
       <div class="num"><input class="input-conferma in-rateo" type="text" inputmode="decimal" value="${fmtNum(rateoEuro)}" aria-label="Rateo lordo in euro"></div>
       <div class="num"><input class="input-conferma in-rit" type="text" inputmode="decimal" value="${fmtNum(ritenuta(rateoEuro, p.titolo))}" aria-label="Ritenuta sul rateo in euro"></div>
       <div class="num"><input class="input-conferma in-comm" type="text" inputmode="decimal" value="0,00" aria-label="Commissioni in euro"></div>
+      <div class="num" data-carico>—</div>
       <div class="num" data-costo>—</div>
     </div>`;
   }).join('');
@@ -61,12 +62,12 @@ export function htmlConferma() {
   return `
     <section class="card conferma">
       <div class="card-titolo">Conferma acquisto</div>
-      <div class="testo-soft">Controlla per ogni titolo il prezzo a cui hai comprato (precompilato con il prezzo del file), le date, il rateo e le commissioni pagate. Il rateo è una stima: se hai la lettera di conferma della banca, scrivi il rateo che trovi lì.</div>
+      <div class="testo-soft">Controlla per ogni titolo il prezzo di esecuzione (quello della nota informativa; precompilato con il prezzo del file), le date, il rateo e le commissioni pagate. Il rateo è una stima: se hai la lettera di conferma della banca, scrivi il rateo che trovi lì.</div>
       ${esclusi > 0 ? `<div class="messaggio messaggio-avviso">${esclusi === 1 ? '1 titolo della bozza non verrà inserito' : esclusi + ' titoli della bozza non verranno inseriti'} (non presenti nel file o non in euro).</div>` : ''}
       <div class="tabella-scroll"><div class="tabella tabella-conferma">
         <div class="riga-testa">
-          <div>Titolo</div><div class="num">Nominale</div><div class="num">Prezzo di carico</div>
-          <div>Data acquisto</div><div>Data regolamento</div><div class="num">Rateo lordo (€)</div><div class="num">Rit. rateo (€)</div><div class="num">Commissioni (€)</div><div class="num">Totale a debito (€)</div>
+          <div>Titolo</div><div class="num">Nominale</div><div class="num">Prezzo di esecuzione</div>
+          <div>Data acquisto</div><div>Data regolamento</div><div class="num">Rateo lordo (€)</div><div class="num">Rit. rateo (€)</div><div class="num">Commissioni (€)</div><div class="num">Prezzo di carico (con comm.)</div><div class="num">Totale a debito (€)</div>
         </div>
         ${righe}
       </div></div>
@@ -84,7 +85,7 @@ export function htmlConferma() {
         <button class="btn btn-secondario" data-azione="conferma-annulla">Annulla</button>
         <button class="btn btn-secondario" data-azione="conferma-ricalcola">Ricalcola date e ratei</button>
       </div>
-      <div class="nota-tabella">Il totale a debito è nominale × prezzo di carico / 100 + rateo lordo − ritenuta sul rateo + commissioni, come sulla nota informativa della banca. La ritenuta sul rateo è proposta con l'aliquota del titolo (12,5% o 26%): se la nota riporta un altro valore, scrivilo. La data di regolamento proposta è 2 giorni lavorativi dopo l'acquisto (senza festività). Il rateo si calcola sui giorni effettivi del periodo cedolare; è lordo, perché la ritenuta si applica poi solo al periodo in cui hai detenuto il titolo. Se cambi la data di regolamento il rateo si ricalcola, a meno che tu non lo abbia scritto a mano.</div>
+      <div class="nota-tabella">Il totale a debito è nominale × prezzo di carico / 100 + rateo lordo − ritenuta sul rateo + commissioni, come sulla nota informativa della banca. Il prezzo di carico è calcolato da me: prezzo di esecuzione + commissioni / nominale, cioè il prezzo medio che vedi sul broker. La ritenuta sul rateo è proposta con l'aliquota del titolo (12,5% o 26%): se la nota riporta un altro valore, scrivilo. La data di regolamento proposta è 2 giorni lavorativi dopo l'acquisto (senza festività). Il rateo si calcola sui giorni effettivi del periodo cedolare; è lordo, perché la ritenuta si applica poi solo al periodo in cui hai detenuto il titolo. Se cambi la data di regolamento il rateo si ricalcola, a meno che tu non lo abbia scritto a mano.</div>
     </section>`;
 }
 
@@ -98,8 +99,10 @@ export function aggiornaConferma() {
     const c = leggiNumero(r.querySelector('.in-comm').value);
     const nominale = Number(r.dataset.nominale);
     const cella = r.querySelector('[data-costo]');
-    if (!(carico > 0) || ra === null || ri === null || c === null) { cella.textContent = '—'; validi = false; return; }
+    const cellaCarico = r.querySelector('[data-carico]');
+    if (!(carico > 0) || ra === null || ri === null || c === null) { cella.textContent = '—'; cellaCarico.textContent = '—'; validi = false; return; }
     cella.textContent = fmtNum(nominale * carico / 100 + ra - ri + c);
+    cellaCarico.textContent = fmtNum(prezzoCaricoDa(nominale, carico, c), 3);
     costo += nominale * carico / 100;
     rateo += ra;
     rit += ri;
@@ -162,7 +165,8 @@ function confermaAcquisto() {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       isin: r.dataset.isin,
       nominale: Number(r.dataset.nominale),
-      prezzoCarico: carico,
+      prezzoEsecuzione: carico,
+      prezzoCarico: prezzoCaricoDa(Number(r.dataset.nominale), carico, comm),
       data: data,
       dataRegolamento: reg,
       rateo: rateo,
@@ -192,6 +196,7 @@ function rigaLotto(l, perIsin) {
       ${bottone}</div>`;
   }
 
+  const esec = prezzoEsecuzione(l);
   const variazione = l.prezzoCarico > 0 ? (t.prezzo - l.prezzoCarico) / l.prezzoCarico * 100 : null;
   const classe = variazione === null ? '' : variazione >= 0 ? 'pos' : 'neg';
   const rateoEuro = l.rateo || 0;
@@ -199,7 +204,8 @@ function rigaLotto(l, perIsin) {
     <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
     <div><input class="input-conferma mod-data" type="date" value="${esc(l.data || '')}" aria-label="Data di acquisto"></div>
     <div class="num">${fmtNum(l.nominale, 0)}</div>
-    <div class="num"><input class="input-conferma mod-carico" type="text" inputmode="decimal" value="${fmtNum(l.prezzoCarico)}" aria-label="Prezzo di carico"></div>
+    <div class="num"><input class="input-conferma mod-carico" type="text" inputmode="decimal" value="${fmtNum(esec, 4)}" aria-label="Prezzo di esecuzione"></div>
+    <div class="num" data-carico>${fmtNum(l.prezzoCarico, 3)}</div>
     <div class="num">${fmtNum(t.prezzo)}</div>
     <div class="num ${classe}" data-var>${variazione === null ? '—' : segno(variazione) + fmtNum(Math.abs(variazione)) + '%'}</div>
     <div class="num" data-valore>${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
@@ -230,12 +236,12 @@ export function htmlCostruito() {
       ${testaComprimibile('tab-costruito', 'Acquisti', 'riassunto-costruito')}
       <div class="tabella-scroll"><div class="tabella tabella-costruito">
         <div class="riga-testa">
-          <div>Titolo</div><div>Data acquisto</div><div class="num">Nominale</div><div class="num">Prezzo carico</div>
+          <div>Titolo</div><div>Data acquisto</div><div class="num">Nominale</div><div class="num">Prezzo esecuz.</div><div class="num">Prezzo carico</div>
           <div class="num">Prezzo oggi</div><div class="num">Var. %</div><div class="num">Valore oggi</div><div>Data regolamento</div><div class="num">Rateo lordo (€)</div><div class="num">Rit. rateo (€)</div><div class="num">Commissioni (€)</div><div></div>
         </div>
         ${stato.costruito.map(l => rigaLotto(l, perIsin)).join('')}
       </div></div>
-      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Puoi correggere data di acquisto, prezzo di carico, data di regolamento, rateo e commissioni scrivendo direttamente nelle caselle (la modifica si salva quando esci dalla casella); il pulsante ↻ ricalcola rateo e ritenuta dalla data di regolamento. Per cambiare il nominale togli l'acquisto con la ✕ e rifallo dalla bozza. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. Il capitale investito è il totale a debito (titoli + rateo lordo − ritenuta sul rateo + commissioni). Negli acquisti salvati prima della versione 0.23.0 la ritenuta è 0: premi ↻ oppure scrivila dalla nota informativa. La variazione riguarda solo i prezzi e non comprende le tasse sulla plusvalenza.</div>
+      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Puoi correggere data di acquisto, prezzo di esecuzione, data di regolamento, rateo e commissioni scrivendo direttamente nelle caselle (la modifica si salva quando esci dalla casella); il pulsante ↻ ricalcola rateo e ritenuta dalla data di regolamento. Il prezzo di carico (con commissioni) è calcolato: è quello che vedi sul broker. Per cambiare il nominale togli l'acquisto con la ✕ e rifallo dalla bozza. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. Il capitale investito è il totale a debito (titoli + rateo lordo − ritenuta sul rateo + commissioni). La variazione è calcolata rispetto al costo dei titoli comprese le commissioni. Negli acquisti salvati prima della versione 0.23.0 la ritenuta è 0: premi ↻ oppure scrivila dalla nota informativa. La variazione riguarda solo i prezzi e non comprende le tasse sulla plusvalenza.</div>
     </section>
 
     ${htmlPannelloAnalisi()}`;
@@ -384,6 +390,7 @@ function aggiornaRigaAcquisto(riga, lotto) {
   el.textContent = v === null ? '—' : segno(v) + fmtNum(Math.abs(v)) + '%';
   el.classList.toggle('pos', v !== null && v >= 0);
   el.classList.toggle('neg', v !== null && v < 0);
+  riga.querySelector('[data-carico]').textContent = fmtNum(lotto.prezzoCarico, 3);
 }
 
 function applicaModifica(riga, lotto) {
@@ -399,7 +406,7 @@ function applicaModifica(riga, lotto) {
     ridisegna('costruito');
     return null;
   }
-  const nuovo = { ...lotto, prezzoCarico: carico, rateo: rateo, ritenutaRateo: rit, commissioni: comm, data: data, dataRegolamento: reg };
+  const nuovo = { ...lotto, prezzoEsecuzione: carico, prezzoCarico: prezzoCaricoDa(lotto.nominale, carico, comm), rateo: rateo, ritenutaRateo: rit, commissioni: comm, data: data, dataRegolamento: reg };
   correggiCostruito(stato.costruito.map(l => (l.id === lotto.id ? nuovo : l)));
   aggiornaRigaAcquisto(riga, nuovo);
   aggiornaCostruito();

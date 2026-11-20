@@ -70,6 +70,7 @@ export function leggiImportazione(testo) {
       isin: l.isin,
       nominale: l.nominale,
       prezzoCarico: l.prezzoCarico,
+      ...(numero(l.prezzoEsecuzione, 0) ? { prezzoEsecuzione: l.prezzoEsecuzione } : {}),
       data: l.data,
       dataRegolamento: dataValida(l.dataRegolamento) ? l.dataRegolamento : l.data,
       rateo: numero(l.rateo, 0) ? l.rateo : 0,
