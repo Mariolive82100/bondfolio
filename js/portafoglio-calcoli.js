@@ -213,11 +213,12 @@ export function incassiMensili(posizioni) {
 
 // Flusso di cassa per anno, dal primo anno ancora da incassare fino all'ultima scadenza: [{ anno, cedole, rimborsi }]
 // - cedole = cedole nette in euro; rimborsi = nominale restituito alla scadenza (al 100%).
-// - Si contano solo le cedole dei mesi ancora da venire (primo anno: dopo il mese di riferimento) e, nell'anno di scadenza,
-//   quelle fino al mese di scadenza compreso. Se il file non dà i mesi di pagamento, la cedola è spalmata in proporzione ai mesi dell'anno interessati.
+// - Si contano solo le cedole ancora da venire rispetto alla data di riferimento: quelle dei mesi successivi e, nel mese di riferimento,
+//   quelle che cadono dopo il giorno di riferimento (il giorno di pagamento è il giorno della scadenza, come per il rateo). Nell'anno di scadenza
+//   si arriva al mese di scadenza compreso. Se il file non dà i mesi di pagamento, la cedola è spalmata in proporzione ai mesi dell'anno interessati.
 export function flussoAnnuo(posizioni, dataRif) {
   const rif = dataRif ? new Date(dataRif + 'T00:00:00') : new Date();
-  const annoRif = rif.getFullYear(), meseRif = rif.getMonth() + 1;
+  const annoRif = rif.getFullYear(), meseRif = rif.getMonth() + 1, giornoRif = rif.getDate();
   const perAnno = new Map();
   const aggiungi = (anno, campo, v) => {
     const r = perAnno.get(anno) || { anno: anno, cedole: 0, rimborsi: 0 };
@@ -229,12 +230,14 @@ export function flussoAnnuo(posizioni, dataRif) {
     if (!p.valida || !p.titolo.scadenza) return;
     const annoScad = Number(p.titolo.scadenza.slice(0, 4));
     const meseScad = Number(p.titolo.scadenza.slice(5, 7));
-    if (annoScad < annoRif || (annoScad === annoRif && meseScad <= meseRif)) return; // già scaduto rispetto al file
+    const giornoPag = Number(p.titolo.scadenza.slice(8, 10)); // le cedole cadono nello stesso giorno del mese della scadenza
+    const dopoRif = giornoPag > giornoRif; // nel mese di riferimento: pagamento ancora da venire?
+    if (annoScad < annoRif || (annoScad === annoRif && (meseScad < meseRif || (meseScad === meseRif && !dopoRif)))) return; // già scaduto rispetto al file
 
     aggiungi(annoScad, 'rimborsi', p.nominale);
     const mesi = p.titolo.mesiCedola || [];
     for (let anno = annoRif; anno <= annoScad; anno++) {
-      const da = anno === annoRif ? meseRif + 1 : 1;
+      const da = anno === annoRif ? (dopoRif ? meseRif : meseRif + 1) : 1;
       const a = anno === annoScad ? meseScad : 12;
       if (a < da) continue;
       let quota;
