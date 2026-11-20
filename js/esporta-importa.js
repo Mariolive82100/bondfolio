@@ -73,6 +73,7 @@ export function leggiImportazione(testo) {
       data: l.data,
       dataRegolamento: dataValida(l.dataRegolamento) ? l.dataRegolamento : l.data,
       rateo: numero(l.rateo, 0) ? l.rateo : 0,
+      ritenutaRateo: numero(l.ritenutaRateo, 0) ? l.ritenutaRateo : 0,
       commissioni: numero(l.commissioni, 0) ? l.commissioni : 0
     });
   });

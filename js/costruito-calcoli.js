@@ -1,6 +1,6 @@
 // Calcoli del portafoglio costruito (nessuna grafica).
-// Un "lotto" è un acquisto: { id, isin, nominale, prezzoCarico, data, dataRegolamento, rateo, commissioni }.
-// rateo = rateo lordo pagato in euro (assente negli acquisti salvati con le versioni precedenti: vale 0).
+// Un "lotto" è un acquisto: { id, isin, nominale, prezzoCarico, data, dataRegolamento, rateo, ritenutaRateo, commissioni }.
+// rateo = rateo lordo pagato in euro; ritenutaRateo = ritenuta sul rateo scalata dalla banca (assenti negli acquisti salvati con le versioni precedenti: valgono 0).
 
 import { risolviPosizioni, calcolaTotali, calcolaIndicatori, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
 
@@ -14,17 +14,18 @@ export function sommaPerIsin(...liste) {
 // Confronto tra quanto hai pagato e quanto vale oggi (prezzi del file caricato).
 // Conta solo i lotti il cui titolo è nel file ed è in euro; gli altri sono in "esclusi".
 // - costoTitoli = nominale x prezzo di carico / 100; commissioni = somma delle commissioni
-// - capitaleInvestito (valore regolato) = costoTitoli + rateo + commissioni; valoreOggi = nominale x prezzo di oggi / 100
+// - capitaleInvestito (totale a debito) = costoTitoli + rateo - ritenutaRateo + commissioni; valoreOggi = nominale x prezzo di oggi / 100
 // - variazione = valoreOggi - costoTitoli (solo effetto prezzo, senza rateo né tasse sulla plusvalenza)
 export function riepilogoAcquisti(lotti, titoli) {
   const perIsin = new Map(titoli.map(t => [t.isin, t]));
-  let costoTitoli = 0, rateo = 0, commissioni = 0, valoreOggi = 0, validi = 0, esclusi = 0;
+  let costoTitoli = 0, rateo = 0, ritenutaRateo = 0, commissioni = 0, valoreOggi = 0, validi = 0, esclusi = 0;
   lotti.forEach(l => {
     const t = perIsin.get(l.isin);
     if (!t || t.valuta !== VALUTA_PORTAFOGLIO) { esclusi += 1; return; }
     validi += 1;
     costoTitoli += l.nominale * l.prezzoCarico / 100;
     rateo += l.rateo || 0;
+    ritenutaRateo += l.ritenutaRateo || 0;
     commissioni += l.commissioni || 0;
     valoreOggi += l.nominale * (t.prezzo || 0) / 100;
   });
@@ -32,8 +33,9 @@ export function riepilogoAcquisti(lotti, titoli) {
   return {
     costoTitoli: costoTitoli,
     rateo: rateo,
+    ritenutaRateo: ritenutaRateo,
     commissioni: commissioni,
-    capitaleInvestito: costoTitoli + rateo + commissioni,
+    capitaleInvestito: costoTitoli + rateo - ritenutaRateo + commissioni,
     valoreOggi: valoreOggi,
     variazione: variazione,
     variazionePct: costoTitoli > 0 ? variazione / costoTitoli * 100 : null,

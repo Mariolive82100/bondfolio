@@ -47,8 +47,8 @@
 
 /* ---------- Conferma acquisto, costruito, impatto ---------- */
 .conferma { display: flex; flex-direction: column; gap: 14px; }
-.tabella-conferma { min-width: 1150px; }
-.tabella-conferma .riga, .tabella-conferma .riga-testa { grid-template-columns: minmax(220px, 2fr) 90px 110px 140px 140px 110px 110px 130px; }
+.tabella-conferma { min-width: 1200px; }
+.tabella-conferma .riga, .tabella-conferma .riga-testa { grid-template-columns: minmax(200px, 2fr) 90px 100px 140px 140px 100px 100px 100px 120px; }
 .input-conferma {
   width: 100%; height: 34px; padding: 0 10px;
   border: 1px solid #8A94A3; border-radius: 8px;
@@ -61,10 +61,10 @@
 .conferma-totali > div { display: flex; flex-direction: column; gap: 2px; }
 .conferma-totali strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 
-.tabella-costruito { min-width: 1200px; }
-.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(170px, 2fr) 130px 80px 90px 70px 70px 80px 130px 100px 100px 78px; }
+.tabella-costruito { min-width: 1180px; }
+.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(140px, 2fr) 124px 74px 84px 66px 66px 76px 124px 96px 86px 90px 74px; }
 .tabella-costruito .azioni-riga { display: flex; gap: 6px; justify-content: flex-end; }
-.tabella-costruito .riga-esclusa .esclusa-motivo { grid-column: 2 / 11; }
+.tabella-costruito .riga-esclusa .esclusa-motivo { grid-column: 2 / 12; }
 .pos { color: #0B6E5A; }
 .neg { color: #B42318; }
 
