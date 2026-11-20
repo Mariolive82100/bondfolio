@@ -7,6 +7,7 @@ import { htmlCostruito, aggiornaCostruito, htmlConferma, aggiornaConferma, aggio
 import { cedolaNetta } from './filtri.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
+import { dataCalcolo, dataFile, giorniFileVecchio } from './data-calcolo.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -49,6 +50,10 @@ function riga(p) {
 }
 
 function disegna() {
+  const giorniVecchio = giorniFileVecchio();
+  const avvisoFile = giorniVecchio > 7
+    ? `<div class="messaggio messaggio-avviso">I prezzi del file sono del ${fmtData(dataFile())} (${giorniVecchio} giorni fa): prezzi e rendimenti sono quelli di quel giorno. Flussi di cassa, scadenza media, durata e titoli scaduti sono invece aggiornati a oggi. Per prezzi aggiornati carica un nuovo file nella schermata Dati.</div>`
+    : '';
   const intestazioneModo = `
     <div class="card portafoglio-testa">
       <div class="interruttore">
@@ -63,7 +68,7 @@ function disegna() {
           <button class="btn btn-secondario" data-azione="vai-selezione">Aggiungi altri acquisti</button>
           <button class="btn btn-secondario" data-azione="svuota-costruito">Svuota portafoglio</button>` : ''}
       </div>
-    </div>`;
+    </div>${avvisoFile}`;
 
   if (modo === 'costruito') {
     if (stato.costruito.length === 0) {
@@ -153,12 +158,12 @@ function aggiornaNumeri() {
 
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('riassunto-bozza', tot.numero + (tot.numero === 1 ? ' titolo' : ' titoli') + ' · nominale ' + fmtNum(tot.nominale, 0) + ' €');
-  aggiornaPannelloAnalisi(posizioni, tot, stato.meta && stato.meta.dataRiferimento);
+  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo());
   aggiornaImpatto();
 
   set('avviso-escluse', tot.escluse === 1
-    ? '1 titolo è escluso dai calcoli (non presente nel file o non in euro). Puoi toglierlo con la ✕.'
-    : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file o non in euro). Puoi toglierli con la ✕.');
+    ? '1 titolo è escluso dai calcoli (non presente nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'
+    : tot.escluse + ' titoli sono esclusi dai calcoli (non presenti nel file, scaduti o non in euro). Puoi toglierli con la ✕.');
 }
 
 /* ---------- Azioni dell'utente ---------- */

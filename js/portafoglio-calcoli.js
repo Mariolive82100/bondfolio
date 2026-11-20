@@ -3,12 +3,13 @@
 
 import { cedolaNetta, tipoEmittente } from './filtri.js';
 import { ordinaleTitolo } from './rating.js';
+import { anniTrascorsi, scadutoOggi } from './data-calcolo.js';
 
 // Il portafoglio accetta solo titoli in questa valuta
 export const VALUTA_PORTAFOGLIO = 'EUR';
 
 // Unisce la bozza [{ isin, nominale }] con i dati del file.
-// Un titolo è "valido" se è nel file ed è in euro: solo quelli entrano nei calcoli.
+// Un titolo è "valido" se è nel file, è in euro e non è già scaduto alla data di oggi: solo quelli entrano nei calcoli.
 export function risolviPosizioni(bozza, titoli) {
   const perIsin = new Map(titoli.map(t => [t.isin, t]));
   return bozza.map(b => {
@@ -16,6 +17,7 @@ export function risolviPosizioni(bozza, titoli) {
     let motivo = '';
     if (!titolo) motivo = 'Non presente nel file';
     else if (titolo.valuta !== VALUTA_PORTAFOGLIO) motivo = 'Valuta non EUR';
+    else if (scadutoOggi(titolo)) motivo = 'Scaduto';
     const valida = motivo === '';
     return {
       isin: b.isin,
@@ -32,12 +34,14 @@ export function risolviPosizioni(bozza, titoli) {
 }
 
 // Media ponderata per controvalore (nominale x prezzo / 100) di un campo del titolo (es. 'rendNetto'); ignora i titoli senza quel dato
-function mediaPonderata(posizioni, campo) {
+// aggiusta(valore) permette di correggere il valore prima della media (es. duration che si accorcia)
+function mediaPonderata(posizioni, campo, aggiusta) {
   let somma = 0, pesi = 0;
   posizioni.forEach(p => {
     if (!p.valida) return;
-    const v = p.titolo[campo];
+    let v = p.titolo[campo];
     if (v === null || v === undefined) return;
+    if (aggiusta) v = aggiusta(v);
     somma += v * p.controvalore;
     pesi += p.controvalore;
   });
@@ -57,11 +61,12 @@ export function calcolaTotali(posizioni) {
   return {
     rendLordo: mediaPonderata(posizioni, 'rendLordo'),
     rendNetto: mediaPonderata(posizioni, 'rendNetto'),
-    duration: mediaPonderata(posizioni, 'durationLorda'),
+    // la duration del file è riferita alla data del file: si accorcia degli anni passati da allora (stima)
+    duration: mediaPonderata(posizioni, 'durationLorda', d => Math.max(0, d - anniTrascorsi())),
     nominale: nominale, cedoleAnnue: cedoleAnnue, cedoleNette: cedoleNette, controvalore: controvalore, numero: numero, escluse: posizioni.length - numero };
 }
 
-// Altri indicatori del riepilogo. dataRif = data di riferimento del file ("aaaa-mm-gg"), se manca si usa oggi.
+// Altri indicatori del riepilogo. dataRif = data di calcolo ("aaaa-mm-gg", vedi data-calcolo.js), se manca si usa oggi.
 // - scadenzaAnni, cedolaNetta, ratingOrdinale: medie ponderate per controvalore
 // - quote: peso sul nominale di governativi, sovranazionali, societari (in %)
 // - ratingConteggio: quanti titoli hanno un rating (gli altri non entrano nella media)

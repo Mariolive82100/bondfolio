@@ -4,6 +4,7 @@
 // Gli acquisti salvati con le versioni precedenti possono avere altri campi (rateo, ritenute, regolamento): vengono ignorati.
 
 import { risolviPosizioni, calcolaTotali, calcolaIndicatori, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
+import { scadutoOggi } from './data-calcolo.js';
 
 // Somma i nominali dello stesso ISIN: [{ isin, nominale }]
 export function sommaPerIsin(...liste) {
@@ -22,7 +23,7 @@ export function riepilogoAcquisti(lotti, titoli) {
   let capitale = 0, commissioni = 0, valoreOggi = 0, validi = 0, esclusi = 0;
   lotti.forEach(l => {
     const t = perIsin.get(l.isin);
-    if (!t || t.valuta !== VALUTA_PORTAFOGLIO) { esclusi += 1; return; }
+    if (!t || t.valuta !== VALUTA_PORTAFOGLIO || scadutoOggi(t)) { esclusi += 1; return; }
     validi += 1;
     capitale += l.nominale * l.prezzoCarico / 100;
     commissioni += l.commissioni || 0;
@@ -39,13 +40,6 @@ export function riepilogoAcquisti(lotti, titoli) {
     lotti: validi,
     esclusi: esclusi
   };
-}
-
-// Stima del rendimento netto annuo dopo le commissioni: si sottrae il costo delle commissioni
-// (in % del capitale) spalmato sugli anni medi alla scadenza. È un'approssimazione.
-export function rendDopoCommissioni(rendNetto, commissioniPct, scadenzaAnni) {
-  if (rendNetto === null || commissioniPct === null || !(scadenzaAnni > 0)) return null;
-  return rendNetto - commissioniPct / scadenzaAnni;
 }
 
 // Prima e dopo: il portafoglio costruito da solo, e il costruito più gli acquisti della bozza.

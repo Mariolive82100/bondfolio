@@ -5,7 +5,9 @@
 
 import { stato, impostaBozza, impostaCostruito, correggiCostruito } from './state.js';
 import { risolviPosizioni, calcolaTotali, calcolaIndicatori, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
-import { sommaPerIsin, riepilogoAcquisti, rendDopoCommissioni, impattoAggiunta } from './costruito-calcoli.js';
+import { sommaPerIsin, riepilogoAcquisti, impattoAggiunta } from './costruito-calcoli.js';
+import { dataCalcolo, scadutoOggi } from './data-calcolo.js';
+import { rendimentoAcquistoPortafoglio } from './rendimento.js';
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, leggiNumero, oggiIso } from './formati.js';
@@ -18,7 +20,7 @@ let confermando = false; // true mentre si vede la schermata "Conferma acquisto"
 export function inConferma() { return confermando; }
 export function annullaConferma() { confermando = false; }
 
-const dataRiferimento = () => stato.meta && stato.meta.dataRiferimento;
+const dataRiferimento = dataCalcolo;
 const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
 const segno = n => (n > 0 ? '+' : n < 0 ? '−' : '');
 const ridisegna = modo => document.dispatchEvent(new CustomEvent('ridisegna-portafoglio', { detail: { modo: modo } }));
@@ -128,8 +130,8 @@ function rigaLotto(l, perIsin) {
   const sotto = esc(l.isin);
   const bottone = `<button class="btn-x" data-azione="rimuovi-acquisto" data-id="${esc(l.id)}" aria-label="Togli questo acquisto">✕</button>`;
 
-  if (!t || t.valuta !== VALUTA_PORTAFOGLIO) {
-    const motivo = !t ? 'Non più nel file (scaduto?)' : 'Valuta non EUR';
+  if (!t || t.valuta !== VALUTA_PORTAFOGLIO || scadutoOggi(t)) {
+    const motivo = !t ? 'Non più nel file' : t.valuta !== VALUTA_PORTAFOGLIO ? 'Valuta non EUR' : 'Scaduto';
     return `<div class="riga riga-esclusa">
       <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
       <div class="esclusa-motivo"><span class="pill pill-basso">${esc(motivo)}</span> <span class="testo-soft">Escluso dai calcoli</span></div>
@@ -160,7 +162,7 @@ export function htmlCostruito() {
       <div class="card"><div class="testo-soft">Valore oggi (prezzi del file)</div><div class="valore" id="r-valore"></div></div>
       <div class="card"><div class="testo-soft">Variazione latente dei prezzi</div><div class="valore" id="r-var"></div></div>
       <div class="card"><div class="testo-soft">Commissioni pagate</div><div class="valore" id="r-comm"></div><div class="testo-soft" id="r-comm-nota"></div></div>
-      <div class="card"><div class="testo-soft">Rendimento netto dopo commissioni (stima)</div><div class="valore" id="r-rend-comm"></div><div class="testo-soft" id="r-rend-comm-nota"></div></div>
+      <div class="card"><div class="testo-soft">Rendimento netto all'acquisto (stima)</div><div class="valore" id="r-rend-comm"></div><div class="testo-soft" id="r-rend-comm-nota"></div></div>
     </div>
 
     <section class="card tabella-card${classeChiusa('tab-costruito')}">
@@ -202,18 +204,19 @@ export function aggiornaCostruito() {
   set('r-comm', fmtNum(r.commissioni) + ' €');
   set('r-comm-nota', r.commissioniPct === null ? '' : fmtNum(r.commissioniPct) + '% del capitale investito');
 
-  const dopo = rendDopoCommissioni(tot.rendNetto, r.commissioniPct, ind.scadenzaAnni);
-  set('r-rend-comm', dopo === null ? '—' : fmtNum(dopo) + '%');
-  set('r-rend-comm-nota', dopo === null ? '' :
-    'contro ' + fmtNum(tot.rendNetto) + '% senza commissioni (−' + fmtNum(tot.rendNetto - dopo) + ' punti l\'anno)');
+  const acq = rendimentoAcquistoPortafoglio(stato.costruito, stato.titoli, VALUTA_PORTAFOGLIO, scadutoOggi);
+  set('r-rend-comm', acq.rend === null ? '—' : fmtNum(acq.rend) + '%');
+  set('r-rend-comm-nota', acq.rend === null ? '' :
+    'fisso, dal prezzo di carico' + (tot.rendNetto === null ? '' : ' · ai prezzi di oggi: ' + fmtNum(tot.rendNetto) + '%') +
+    (acq.conteggio < acq.totale ? ' · calcolato su ' + acq.conteggio + ' di ' + acq.totale + ' acquisti' : ''));
 
   set('avviso-costruito', '');
   const avviso = document.getElementById('avviso-costruito');
   if (avviso) {
     avviso.className = r.esclusi > 0 ? 'messaggio messaggio-avviso' : '';
     avviso.textContent = r.esclusi === 0 ? '' : (r.esclusi === 1
-      ? '1 acquisto è escluso dai calcoli (titolo non più nel file, ad esempio scaduto, oppure non in euro). Puoi toglierlo con la ✕.'
-      : r.esclusi + ' acquisti sono esclusi dai calcoli (titoli non più nel file, ad esempio scaduti, oppure non in euro). Puoi toglierli con la ✕.');
+      ? '1 acquisto è escluso dai calcoli (titolo non più nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'
+      : r.esclusi + ' acquisti sono esclusi dai calcoli (titoli non più nel file, scaduti o non in euro). Puoi toglierli con la ✕.');
   }
 }
 
