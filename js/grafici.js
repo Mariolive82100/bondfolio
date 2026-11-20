@@ -8,43 +8,39 @@ function compatto(v) {
   return v >= 1000 ? fmtNum(v / 1000, 1) + 'k' : fmtNum(v, 0);
 }
 
-// Colonne verticali. voci = [{ etichetta, valore, titolo }]
-export function graficoColonne(voci) {
+// Barre orizzontali, una riga per voce (etichetta a sinistra, barra, valore a destra).
+// voci = [{ etichetta, valore, titolo }]
+export function graficoBarre(voci) {
   const max = Math.max(0, ...voci.map(v => v.valore));
-  // Con molte colonne (es. tanti anni) niente valori sopra le barre e un'etichetta ogni tanto: restano nel suggerimento al passaggio del mouse
-  const molte = voci.length > 12;
-  const passo = Math.ceil(voci.length / 12);
-  const colonne = voci.map((v, i) => {
-    const altezza = max > 0 && v.valore > 0 ? Math.max(3, v.valore / max * 100) : 0;
-    const mostraEtichetta = !molte || i % passo === 0;
-    return `<div class="colonna" title="${esc(v.titolo)}">
-      <span class="col-valore">${v.valore > 0 && !molte ? compatto(v.valore) : ''}</span>
-      <div class="col-area"><div class="col-barra" style="height:${altezza.toFixed(1)}%"></div></div>
-      <span class="col-etichetta">${mostraEtichetta ? esc(v.etichetta) : '&nbsp;'}</span>
+  const righe = voci.map(v => {
+    const larghezza = max > 0 && v.valore > 0 ? Math.max(1.5, v.valore / max * 100) : 0;
+    return `<div class="barra-riga" title="${esc(v.titolo)}">
+      <span class="barra-etichetta">${esc(v.etichetta)}</span>
+      <div class="barra-area"><div class="barra-pieno" style="width:${larghezza.toFixed(1)}%"></div></div>
+      <span class="barra-valore">${v.valore > 0 ? compatto(v.valore) : ''}</span>
     </div>`;
   }).join('');
-  return `<div class="colonne">${colonne}</div>`;
+  return `<div class="barre">${righe}</div>`;
 }
 
-// Colonne impilate (due parti sopra la stessa colonna). voci = [{ etichetta, parti: [a, b], titolo }]; nomiParti = ['Cedole', 'Rimborsi']
-export function graficoColonneImpilate(voci, nomiParti) {
+// Barre orizzontali impilate (due parti nella stessa barra), con la legenda sotto.
+// voci = [{ etichetta, parti: [a, b], titolo }]; nomiParti = ['Cedole', 'Rimborsi']
+export function graficoBarreImpilate(voci, nomiParti) {
   const totale = v => v.parti.reduce((s, x) => s + x, 0);
   const max = Math.max(0, ...voci.map(totale));
-  const molte = voci.length > 12;
-  const passo = Math.ceil(voci.length / 12);
-  const colonne = voci.map((v, i) => {
+  const righe = voci.map(v => {
     const segmenti = v.parti.map((x, k) => {
-      const h = max > 0 && x > 0 ? Math.max(1.5, x / max * 100) : 0;
-      return `<div class="seg seg-${k}" style="height:${h.toFixed(1)}%"></div>`;
+      const w = max > 0 && x > 0 ? Math.max(1, x / max * 100) : 0;
+      return `<div class="seg seg-${k}" style="width:${w.toFixed(1)}%"></div>`;
     }).join('');
-    return `<div class="colonna" title="${esc(v.titolo)}">
-      <span class="col-valore">${totale(v) > 0 && !molte ? compatto(totale(v)) : ''}</span>
-      <div class="col-area col-impilata">${segmenti}</div>
-      <span class="col-etichetta">${!molte || i % passo === 0 ? esc(v.etichetta) : '&nbsp;'}</span>
+    return `<div class="barra-riga" title="${esc(v.titolo)}">
+      <span class="barra-etichetta">${esc(v.etichetta)}</span>
+      <div class="barra-area">${segmenti}</div>
+      <span class="barra-valore">${totale(v) > 0 ? compatto(totale(v)) : ''}</span>
     </div>`;
   }).join('');
   const legenda = nomiParti.map((n, k) => `<span class="leg-voce"><span class="torta-colore seg-${k}"></span>${esc(n)}</span>`).join('');
-  return `<div class="leg-righe">${legenda}</div><div class="colonne">${colonne}</div>`;
+  return `<div class="barre">${righe}</div><div class="leg-righe">${legenda}</div>`;
 }
 
 // Grafico a torta (ad anello), interattivo: passando il mouse su una fetta o su una voce della legenda

@@ -1,7 +1,7 @@
 // Pannello di analisi (riepilogo + grafici), usato sia dalla bozza sia dal portafoglio costruito.
 
 import { calcolaIndicatori, scalettaScadenze, pesoPerEmittente, pesoPerTitolo, pesoPerTipo, pesoPerRating, incassiMensili, flussoAnnuo } from './portafoglio-calcoli.js';
-import { graficoColonne, graficoColonneImpilate, graficoTorta, graficoVuoto } from './grafici.js';
+import { graficoBarre, graficoBarreImpilate, graficoTorta, graficoVuoto } from './grafici.js';
 import { etichettaDaOrdinale } from './rating.js';
 import { fmtNum, NOMI_MESI } from './formati.js';
 
@@ -22,12 +22,13 @@ export function htmlPannelloAnalisi() {
       </div>
 
       <div class="grafici">
-        <section class="card card-largo">
+        <section class="card">
           <div class="card-titolo">Flusso di cassa per anno</div>
-          <div class="testo-soft" id="g-flusso-nota"></div>
+          <div class="testo-soft">Cedole nette + rimborsi (€)</div>
           <div id="g-flusso"></div>
+          <div class="nota-grafico" id="g-flusso-nota"></div>
         </section>
-        <section class="card card-largo">
+        <section class="card">
           <div class="card-titolo">Cedole nette per anno</div>
           <div class="testo-soft">Solo le cedole, senza i rimborsi (€)</div>
           <div id="g-cedole-anno"></div>
@@ -39,8 +40,9 @@ export function htmlPannelloAnalisi() {
         </section>
         <section class="card">
           <div class="card-titolo">Incassi cedolari netti per mese</div>
-          <div class="testo-soft" id="g-cedole-nota"></div>
+          <div class="testo-soft">Cedole nette incassate in ogni mese (€)</div>
           <div id="g-cedole"></div>
+          <div class="nota-grafico" id="g-cedole-nota"></div>
         </section>
         <section class="card">
           <div class="card-titolo">Diversificazione per emittente</div>
@@ -91,13 +93,13 @@ function aggiornaGrafici(posizioni, dataRif) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
   const flusso = flussoAnnuo(posizioni, dataRif);
-  metti('g-flusso', flusso.length === 0 ? graficoVuoto('Nessun dato') : graficoColonneImpilate(flusso.map(x => ({
+  metti('g-flusso', flusso.length === 0 ? graficoVuoto('Nessun dato') : graficoBarreImpilate(flusso.map(x => ({
     etichetta: String(x.anno),
     parti: [x.cedole, x.rimborsi],
     titolo: x.anno + ': cedole nette ' + fmtNum(x.cedole) + ' € + rimborsi ' + fmtNum(x.rimborsi) + ' € = ' + fmtNum(x.cedole + x.rimborsi) + ' €'
   })), ['Cedole nette', 'Rimborsi a scadenza']));
   const cedoleAnno = flusso.some(x => x.cedole > 0);
-  metti('g-cedole-anno', !cedoleAnno ? graficoVuoto('Nessuna cedola') : graficoColonne(flusso.map(x => ({
+  metti('g-cedole-anno', !cedoleAnno ? graficoVuoto('Nessuna cedola') : graficoBarre(flusso.map(x => ({
     etichetta: String(x.anno),
     valore: x.cedole,
     titolo: x.anno + ': ' + fmtNum(x.cedole) + ' € di cedole nette'
@@ -107,8 +109,8 @@ function aggiornaGrafici(posizioni, dataRif) {
     'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (rimborso al 100%, cedole dai mesi ancora da pagare)');
 
   const scadenze = scalettaScadenze(posizioni);
-  metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoColonne(scadenze.map(x => ({
-    etichetta: "'" + String(x.anno).slice(2),
+  metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoBarre(scadenze.map(x => ({
+    etichetta: String(x.anno),
     valore: x.nominale,
     titolo: x.anno + ': ' + fmtNum(x.nominale, 0) + ' € di nominale'
   }))));
@@ -126,7 +128,7 @@ function aggiornaGrafici(posizioni, dataRif) {
 
   const incassi = incassiMensili(posizioni);
   const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);
-  metti('g-cedole', totaleCedole === 0 ? graficoVuoto('Nessuna cedola') : graficoColonne(incassi.mesi.map((v, i) => ({
+  metti('g-cedole', totaleCedole === 0 ? graficoVuoto('Nessuna cedola') : graficoBarre(incassi.mesi.map((v, i) => ({
     etichetta: NOMI_MESI[i],
     valore: v,
     titolo: NOMI_MESI[i] + ': ' + fmtNum(v) + ' € netti'
