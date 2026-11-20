@@ -26,3 +26,10 @@ export function impostaCostruito(lista) {
   salvaCostruito(lista);
   document.dispatchEvent(new CustomEvent('costruito-aggiornato'));
 }
+
+// Come impostaCostruito, ma senza ridisegnare la schermata: serve per le correzioni scritte dentro la tabella,
+// così il cursore resta dove sta (chi chiama aggiorna da sé i numeri che cambiano).
+export function correggiCostruito(lista) {
+  stato.costruito = lista;
+  salvaCostruito(lista);
+}

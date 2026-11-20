@@ -61,9 +61,10 @@
 .conferma-totali > div { display: flex; flex-direction: column; gap: 2px; }
 .conferma-totali strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 
-.tabella-costruito { min-width: 1090px; }
-.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(220px, 2.2fr) 110px 100px 100px 90px 90px 110px 90px 100px 40px; }
-.tabella-costruito .riga-esclusa .esclusa-motivo { grid-column: 2 / 10; }
+.tabella-costruito { min-width: 1200px; }
+.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(170px, 2fr) 130px 80px 90px 70px 70px 80px 130px 100px 100px 78px; }
+.tabella-costruito .azioni-riga { display: flex; gap: 6px; justify-content: flex-end; }
+.tabella-costruito .riga-esclusa .esclusa-motivo { grid-column: 2 / 11; }
 .pos { color: #0B6E5A; }
 .neg { color: #B42318; }
 
