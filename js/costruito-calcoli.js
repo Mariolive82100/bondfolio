@@ -1,16 +1,9 @@
 // Calcoli del portafoglio costruito (nessuna grafica).
-// Un "lotto" è un acquisto: { id, isin, nominale, prezzoEsecuzione, prezzoCarico, data, dataRegolamento, rateo, ritenutaRateo, commissioni }.
-// rateo = rateo lordo pagato in euro; ritenutaRateo = ritenuta sul rateo scalata dalla banca (assenti negli acquisti salvati con le versioni precedenti: valgono 0).
+// Un "lotto" è un acquisto: { id, isin, nominale, prezzoCarico, data, commissioni }.
+// prezzoCarico = prezzo medio di carico del broker (per 100 di nominale), già comprensivo di commissioni; commissioni = commissioni pagate in euro (facoltative, 0 se non scritte).
+// Gli acquisti salvati con le versioni precedenti possono avere altri campi (rateo, ritenute, regolamento): vengono ignorati.
 
 import { risolviPosizioni, calcolaTotali, calcolaIndicatori, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
-
-// Prezzo di esecuzione (per 100 di nominale, senza commissioni) e prezzo di carico (con commissioni, come lo mostra il broker).
-// Negli acquisti salvati prima della versione 0.24.0 esiste solo prezzoCarico (scritto dal broker, quindi con commissioni): l'esecuzione se ne ricava.
-export function prezzoEsecuzione(l) {
-  if (typeof l.prezzoEsecuzione === 'number') return l.prezzoEsecuzione;
-  return l.nominale > 0 ? l.prezzoCarico - (l.commissioni || 0) / l.nominale * 100 : l.prezzoCarico;
-}
-export const prezzoCaricoDa = (nominale, esecuzione, commissioni) => esecuzione + (nominale > 0 ? commissioni / nominale * 100 : 0);
 
 // Somma i nominali dello stesso ISIN: [{ isin, nominale }]
 export function sommaPerIsin(...liste) {
@@ -21,33 +14,28 @@ export function sommaPerIsin(...liste) {
 
 // Confronto tra quanto hai pagato e quanto vale oggi (prezzi del file caricato).
 // Conta solo i lotti il cui titolo è nel file ed è in euro; gli altri sono in "esclusi".
-// - costoTitoli = nominale x prezzo di esecuzione / 100 (senza commissioni); commissioni = somma delle commissioni
-// - capitaleInvestito (totale a debito) = costoTitoli + rateo - ritenutaRateo + commissioni; valoreOggi = nominale x prezzo di oggi / 100
-// - variazione = valoreOggi - costoTitoli - commissioni (come il carico del broker: senza rateo né tasse sulla plusvalenza)
+// - capitaleInvestito = nominale x prezzo medio di carico / 100 (il prezzo del broker comprende già le commissioni)
+// - commissioni = somma delle commissioni scritte (facoltative); valoreOggi = nominale x prezzo di oggi / 100
+// - variazione = valoreOggi - capitaleInvestito (solo effetto prezzo, senza rateo né tasse sulla plusvalenza)
 export function riepilogoAcquisti(lotti, titoli) {
   const perIsin = new Map(titoli.map(t => [t.isin, t]));
-  let costoTitoli = 0, rateo = 0, ritenutaRateo = 0, commissioni = 0, valoreOggi = 0, validi = 0, esclusi = 0;
+  let capitale = 0, commissioni = 0, valoreOggi = 0, validi = 0, esclusi = 0;
   lotti.forEach(l => {
     const t = perIsin.get(l.isin);
     if (!t || t.valuta !== VALUTA_PORTAFOGLIO) { esclusi += 1; return; }
     validi += 1;
-    costoTitoli += l.nominale * prezzoEsecuzione(l) / 100;
-    rateo += l.rateo || 0;
-    ritenutaRateo += l.ritenutaRateo || 0;
+    capitale += l.nominale * l.prezzoCarico / 100;
     commissioni += l.commissioni || 0;
     valoreOggi += l.nominale * (t.prezzo || 0) / 100;
   });
-  const variazione = valoreOggi - costoTitoli - commissioni; // rispetto a quanto pagato per i titoli, commissioni comprese
+  const variazione = valoreOggi - capitale;
   return {
-    costoTitoli: costoTitoli,
-    rateo: rateo,
-    ritenutaRateo: ritenutaRateo,
+    capitaleInvestito: capitale,
     commissioni: commissioni,
-    capitaleInvestito: costoTitoli + rateo - ritenutaRateo + commissioni,
     valoreOggi: valoreOggi,
     variazione: variazione,
-    variazionePct: costoTitoli + commissioni > 0 ? variazione / (costoTitoli + commissioni) * 100 : null,
-    commissioniPct: costoTitoli > 0 ? commissioni / costoTitoli * 100 : null,
+    variazionePct: capitale > 0 ? variazione / capitale * 100 : null,
+    commissioniPct: capitale > 0 ? commissioni / capitale * 100 : null,
     lotti: validi,
     esclusi: esclusi
   };
