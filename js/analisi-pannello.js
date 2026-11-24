@@ -135,4 +135,89 @@ function aggiornaGrafici(posizioni, dataRif) {
     valore: x.cedole,
     titolo: x.anno + ': ' + fmtNum(x.cedole) + ' € di cedole nette'
   }))));
-  const
+  const totCedole = flusso.reduce((s, x) => s + x.cedole, 0), totRimborsi = flusso.reduce((s, x) => s + x.rimborsi, 0);
+  const senza = esatto ? cal.titoliSenzaDati : 0;
+  const notaSenzaDati = senza > 0
+    ? ' · ' + senza + (senza === 1 ? ' titolo non è presente nel file dei cashflow e non è conteggiato' : ' titoli non sono presenti nel file dei cashflow e non sono conteggiati') : '';
+  metti('g-flusso-nota', flusso.length === 0 ? '' : esatto
+    ? 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi (al netto di tasse su capital gain e disaggio) = ' + fmtNum(totCedole + totRimborsi, 0) + ' € · calendario reale' + notaSenzaDati
+    : 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (stima: rimborso al 100%, cedole dai mesi ancora da pagare)');
+
+  const scadenze = scalettaScadenze(posizioni);
+  metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoBarre(scadenze.map(x => ({
+    etichetta: String(x.anno),
+    valore: x.nominale,
+    titolo: x.anno + ': ' + fmtNum(x.nominale, 0) + ' € di nominale'
+  }))));
+
+  // Torte: i pesi sono sul nominale; al centro, a riposo, il nominale totale
+  const totaleNominale = posizioni.reduce((s, p) => s + (p.valida ? p.nominale : 0), 0);
+  const centro = { titolo: fmtNum(totaleNominale, 0) + ' €', sotto: 'nominale totale' };
+  const torta = voci => voci.length === 0 ? graficoVuoto('Nessun dato') : graficoTorta(voci.map(x => ({
+    nome: x.nome, pct: x.pct, altri: x.altri, valoreTesto: fmtNum(x.nominale, 0) + ' € di nominale'
+  })), centro);
+  metti('g-emittenti', torta(pesoPerEmittente(posizioni)));
+  metti('g-titoli', torta(pesoPerTitolo(posizioni)));
+  metti('g-tipo', torta(pesoPerTipo(posizioni)));
+  metti('g-rating', torta(pesoPerRating(posizioni)));
+
+  if (esatto) {
+    const dodici = prossimiDodiciMesi(cal, dataRif);
+    const totale12 = dodici.reduce((s, x) => s + x.cedole, 0);
+    metti('g-cedole', totale12 === 0 ? graficoVuoto('Nessuna cedola nei prossimi 12 mesi') : graficoBarre(dodici.map(x => ({
+      etichetta: NOMI_MESI[x.mese - 1] + ' ' + String(x.anno).slice(2),
+      valore: x.cedole,
+      titolo: NOMI_MESI[x.mese - 1] + ' ' + x.anno + ': ' + fmtNum(x.cedole) + ' € netti'
+    }))));
+    metti('g-cedole-nota', totale12 === 0 ? '' : 'Prossimi 12 mesi: ' + fmtNum(totale12, 0) + ' € · media ' + fmtNum(totale12 / 12, 0) + ' € al mese · calendario reale');
+  } else {
+    const incassi = incassiMensili(posizioni);
+    const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);
+    metti('g-cedole', totaleCedole === 0 ? graficoVuoto('Nessuna cedola') : graficoBarre(incassi.mesi.map((v, i) => ({
+      etichetta: NOMI_MESI[i],
+      valore: v,
+      titolo: NOMI_MESI[i] + ': ' + fmtNum(v) + ' € netti'
+    }))));
+    metti('g-cedole-nota', totaleCedole === 0 ? '' :
+      'Media: ' + fmtNum(totaleCedole / 12, 0) + ' € al mese (stima)' +
+      (incassi.nonCollocati > 0 ? ` · ${incassi.nonCollocati} ${incassi.nonCollocati === 1 ? 'titolo non ha' : 'titoli non hanno'} i mesi di pagamento nel file` : ''));
+  }
+
+  // Tabella del calendario
+  metti('g-calendario', esatto ? htmlCalendario(cal)
+    : graficoVuoto(posizioni.some(p => p.valida)
+      ? 'Per vedere date e importi reali carica il file dei cashflow nella schermata Dati (i grafici usano una stima).'
+      : 'Nessun titolo nel portafoglio'));
+}
+
+// Tabella degli incassi: una riga per data e titolo (cedola e tassa sulla cedola sommate)
+function htmlCalendario(cal) {
+  const mappa = new Map();
+  cal.righe.forEach(r => {
+    const k = r.data + '|' + r.isin;
+    const v = mappa.get(k) || { data: r.data, nome: r.nome, lordo: 0, tasse: 0, netto: 0, cedola: false, rimborso: false };
+    if (r.tipo === 'tassa') v.tasse += r.importo; else v.lordo += r.importo;
+    if (r.tipo === 'cedola') v.cedola = true;
+    if (r.tipo === 'rimborso') v.rimborso = true;
+    v.netto += r.importo;
+    mappa.set(k, v);
+  });
+  const cella = 'padding:6px 10px;border-bottom:1px solid #EEF0F3;white-space:nowrap;font-variant-numeric:tabular-nums;';
+  const testa = 'padding:8px 10px;position:sticky;top:0;background:#fff;text-align:left;font-weight:600;border-bottom:1px solid #D9DEE4;';
+  let totale = 0;
+  const righe = Array.from(mappa.values()).map(v => {
+    totale += v.netto;
+    const evento = v.cedola && v.rimborso ? 'Cedola + rimborso' : v.cedola ? 'Cedola' : v.rimborso ? 'Rimborso' : 'Tasse';
+    return '<tr><td style="' + cella + '">' + fmtData(v.data) + '</td>'
+      + '<td style="' + cella + 'white-space:normal;">' + esc(v.nome) + '</td>'
+      + '<td style="' + cella + '">' + evento + '</td>'
+      + '<td style="' + cella + 'text-align:right;">' + fmtNum(v.lordo) + '</td>'
+      + '<td style="' + cella + 'text-align:right;">' + fmtNum(v.tasse) + '</td>'
+      + '<td style="' + cella + 'text-align:right;font-weight:600;">' + fmtNum(v.netto) + '</td></tr>';
+  });
+  return '<div style="max-height:420px;overflow:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    + '<thead><tr><th style="' + testa + '">Data</th><th style="' + testa + '">Titolo</th><th style="' + testa + '">Evento</th>'
+    + '<th style="' + testa + 'text-align:right;">Lordo €</th><th style="' + testa + 'text-align:right;">Tasse €</th><th style="' + testa + 'text-align:right;">Netto €</th></tr></thead>'
+    + '<tbody>' + righe.join('') + '</tbody></table></div>'
+    + '<div class="nota-grafico">' + mappa.size + ' incassi · totale netto ' + fmtNum(totale, 0) + ' € · importi del calendario reale, riproporzionati ai tuoi nominali</div>';
+}
