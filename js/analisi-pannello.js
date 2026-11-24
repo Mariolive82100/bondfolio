@@ -3,7 +3,30 @@
 import { calcolaIndicatori, scalettaScadenze, pesoPerEmittente, pesoPerTitolo, pesoPerTipo, pesoPerRating, incassiMensili, flussoAnnuo } from './portafoglio-calcoli.js';
 import { graficoBarre, graficoBarreImpilate, graficoTorta, graficoVuoto } from './grafici.js';
 import { etichettaDaOrdinale } from './rating.js';
-import { fmtNum, NOMI_MESI } from './formati.js';
+import { fmtNum, fmtData, esc, NOMI_MESI } from './formati.js';
+import { cashflowAttuale } from './cashflow-dati.js';
+import { costruisciCalendario, prossimiDodiciMesi } from './cashflow-calcoli.js';
+
+// Se il calendario reale (file cashflow) è stato caricato nella schermata Dati, i grafici lo usano;
+// altrimenti restano le stime di prima. Quando il file cambia, il pannello si ridisegna da solo.
+let ultimaChiamata = null; // { posizioni, dataRif }
+document.addEventListener('cashflow-aggiornato', () => {
+  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif);
+});
+
+// Calendario reale per il portafoglio, oppure null (file non caricato o nessun titolo coperto).
+// Gli incassi già avvenuti (prima della data di riferimento) vengono esclusi.
+function calendarioReale(posizioni, dataRif) {
+  const cf = cashflowAttuale();
+  if (!cf) return null;
+  const eventi = new Map();
+  cf.perIsin.forEach((lista, isin) => {
+    const futuri = lista.filter(e => e.data >= dataRif);
+    if (futuri.length > 0) eventi.set(isin, futuri);
+  });
+  const cal = costruisciCalendario(posizioni, eventi);
+  return cal.righe.length > 0 ? cal : null;
+}
 
 // Codice HTML del pannello (numeri e grafici si riempiono poi con aggiornaPannelloAnalisi)
 export function htmlPannelloAnalisi() {
@@ -64,6 +87,11 @@ export function htmlPannelloAnalisi() {
           <div class="testo-soft">Peso sul nominale totale</div>
           <div id="g-rating"></div>
         </section>
+        <section class="card" style="grid-column: 1 / -1;">
+          <div class="card-titolo">Calendario incassi</div>
+          <div class="testo-soft">Date e importi reali di cedole e rimborsi, al netto delle tasse (€)</div>
+          <div id="g-calendario"></div>
+        </section>
       </div>
   `;
 }
@@ -85,6 +113,7 @@ export function aggiornaPannelloAnalisi(posizioni, tot, dataRif) {
   set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
   set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
     ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
+  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif };
   aggiornaGrafici(posizioni, dataRif);
 }
 
@@ -92,7 +121,9 @@ export function aggiornaPannelloAnalisi(posizioni, tot, dataRif) {
 function aggiornaGrafici(posizioni, dataRif) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
-  const flusso = flussoAnnuo(posizioni, dataRif);
+  const cal = calendarioReale(posizioni, dataRif);
+  const esatto = cal !== null;
+  const flusso = esatto ? cal.perAnno : flussoAnnuo(posizioni, dataRif);
   metti('g-flusso', flusso.length === 0 ? graficoVuoto('Nessun dato') : graficoBarreImpilate(flusso.map(x => ({
     etichetta: String(x.anno),
     parti: [x.cedole, x.rimborsi],
@@ -104,36 +135,4 @@ function aggiornaGrafici(posizioni, dataRif) {
     valore: x.cedole,
     titolo: x.anno + ': ' + fmtNum(x.cedole) + ' € di cedole nette'
   }))));
-  const totCedole = flusso.reduce((s, x) => s + x.cedole, 0), totRimborsi = flusso.reduce((s, x) => s + x.rimborsi, 0);
-  metti('g-flusso-nota', flusso.length === 0 ? '' :
-    'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (rimborso al 100%, cedole dai mesi ancora da pagare)');
-
-  const scadenze = scalettaScadenze(posizioni);
-  metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoBarre(scadenze.map(x => ({
-    etichetta: String(x.anno),
-    valore: x.nominale,
-    titolo: x.anno + ': ' + fmtNum(x.nominale, 0) + ' € di nominale'
-  }))));
-
-  // Torte: i pesi sono sul nominale; al centro, a riposo, il nominale totale
-  const totaleNominale = posizioni.reduce((s, p) => s + (p.valida ? p.nominale : 0), 0);
-  const centro = { titolo: fmtNum(totaleNominale, 0) + ' €', sotto: 'nominale totale' };
-  const torta = voci => voci.length === 0 ? graficoVuoto('Nessun dato') : graficoTorta(voci.map(x => ({
-    nome: x.nome, pct: x.pct, altri: x.altri, valoreTesto: fmtNum(x.nominale, 0) + ' € di nominale'
-  })), centro);
-  metti('g-emittenti', torta(pesoPerEmittente(posizioni)));
-  metti('g-titoli', torta(pesoPerTitolo(posizioni)));
-  metti('g-tipo', torta(pesoPerTipo(posizioni)));
-  metti('g-rating', torta(pesoPerRating(posizioni)));
-
-  const incassi = incassiMensili(posizioni);
-  const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);
-  metti('g-cedole', totaleCedole === 0 ? graficoVuoto('Nessuna cedola') : graficoBarre(incassi.mesi.map((v, i) => ({
-    etichetta: NOMI_MESI[i],
-    valore: v,
-    titolo: NOMI_MESI[i] + ': ' + fmtNum(v) + ' € netti'
-  }))));
-  metti('g-cedole-nota', totaleCedole === 0 ? '' :
-    'Media: ' + fmtNum(totaleCedole / 12, 0) + ' € al mese' +
-    (incassi.nonCollocati > 0 ? ` · ${incassi.nonCollocati} ${incassi.nonCollocati === 1 ? 'titolo non ha' : 'titoli non hanno'} i mesi di pagamento nel file` : ''));
-}
+  const
