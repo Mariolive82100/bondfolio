@@ -3,11 +3,13 @@
 import { stato, impostaDati, impostaBozza, impostaCostruito } from './state.js';
 import { leggiCsv } from './csv-loader.js';
 import { salva, carica, elimina } from './archivio.js';
+import { leggiCashflow, impostaCashflow, rimuoviCashflow, cashflowAttuale } from './cashflow-dati.js';
 import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, haPortafogli } from './esporta-importa.js';
 
 const radice = document.getElementById('view-dati');
 let messaggio = null; // { tipo: 'errore' | 'avviso', testo: '...' }
 let messaggioPortafogli = null; // stesso formato, per la scheda dei portafogli
+let messaggioCashflow = null; // stesso formato, per la scheda del calendario incassi
 
 function esc(testo) {
   return String(testo).replace(/[&<>"']/g, c => (
@@ -70,7 +72,34 @@ function disegna() {
       </div>`;
   }
 
+  const cf = cashflowAttuale();
+  let corpoCashflow;
+  if (cf) {
+    const giorniVecchio = Math.round((Date.now() - new Date(cf.dataAcquisto + 'T00:00:00')) / 86400000);
+    corpoCashflow = `
+      <div>${esc(cf.nomeFile)}</div>
+      <div class="testo-soft">${cf.perIsin.size.toLocaleString('it-IT')} titoli · calendario calcolato dal ${formatoData(cf.dataAcquisto)}. Caricato il ${formatoDataOra(cf.caricatoIl)}.</div>
+      ${giorniVecchio > 7 ? '<div class="messaggio messaggio-avviso">Il file ha più di una settimana: le cedole già incassate vengono escluse, ma conviene riscaricarlo.</div>' : ''}
+      <div class="gruppo-bottoni">
+        <button class="btn btn-secondario" id="btn-scegli-cashflow">Sostituisci file</button>
+        <button class="btn btn-secondario" id="btn-rimuovi-cashflow">Rimuovi</button>
+      </div>`;
+  } else {
+    corpoCashflow = `
+      <div class="testo-soft">Non ancora caricato: finché manca, il portafoglio mostra una stima di cedole e rimborsi.</div>
+      <div class="gruppo-bottoni">
+        <button class="btn btn-primario" id="btn-scegli-cashflow">Scegli file cashflow</button>
+      </div>`;
+  }
   html += `
+    <div class="card card-flex">
+      <div class="card-titolo">Calendario incassi (facoltativo)</div>
+      <div class="testo-soft">Il file dei cashflow scaricato dalla sezione «Data export» di Simple Tools for Investors. Con questo file l'analisi del portafoglio mostra date e importi reali di cedole, tasse e rimborsi. Viene letto nel tuo browser e non viene inviato da nessuna parte.</div>
+      ${corpoCashflow}
+      <input type="file" id="input-cashflow" accept=".csv,text/csv" hidden>
+      ${messaggioCashflow ? `<div class="messaggio messaggio-${messaggioCashflow.tipo}">${esc(messaggioCashflow.testo)}</div>` : ''}
+    </div>
+
     <div class="card card-flex scheda-portafogli">
       <div class="card-titolo">Portafogli: esporta e importa</div>
       <div class="testo-soft">Per portare la bozza e il portafoglio costruito su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: va caricato a mano.</div>
@@ -100,6 +129,18 @@ function collega() {
     zona.classList.remove('is-over');
     if (e.dataTransfer.files[0]) leggiFile(e.dataTransfer.files[0]);
   });
+
+  const inputCashflow = document.getElementById('input-cashflow');
+  document.getElementById('btn-scegli-cashflow').addEventListener('click', () => inputCashflow.click());
+  inputCashflow.addEventListener('change', () => { if (inputCashflow.files[0]) leggiFileCashflow(inputCashflow.files[0]); });
+  const rimuoviCf = document.getElementById('btn-rimuovi-cashflow');
+  if (rimuoviCf) {
+    rimuoviCf.addEventListener('click', () => {
+      rimuoviCashflow();
+      messaggioCashflow = null;
+      disegna();
+    });
+  }
 
   document.getElementById('btn-esporta').addEventListener('click', () => {
     if (!haPortafogli()) {
@@ -163,6 +204,19 @@ async function leggiFile(file) {
     };
   } catch (errore) {
     messaggio = { tipo: 'errore', testo: errore.message };
+  }
+  disegna();
+}
+
+async function leggiFileCashflow(file) {
+  try {
+    const risultato = leggiCashflow(await file.text());
+    const salvato = impostaCashflow(risultato, file.name);
+    messaggioCashflow = salvato
+      ? { tipo: 'ok', testo: 'Calendario caricato: ' + risultato.perIsin.size.toLocaleString('it-IT') + ' titoli.' }
+      : { tipo: 'avviso', testo: 'File letto, ma non è stato possibile salvarlo nel browser: dovrai ricaricarlo alla prossima apertura.' };
+  } catch (errore) {
+    messaggioCashflow = { tipo: 'errore', testo: errore.message };
   }
   disegna();
 }
