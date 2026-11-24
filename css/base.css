@@ -1,0 +1,35 @@
+:root {
+  --sfondo: #F3F4F6;
+  --card: #FFFFFF;
+  --bordo: #E3E6EA;
+  --testo: #101828;
+  --testo-soft: #5B6472;
+  --accento: #0B6E5A;
+  --accento-soft: #E3F1ED;
+  --sidebar: #101828;
+  --sidebar-attivo: #1D2939;
+  --raggio: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--testo);
+  background: var(--sfondo);
+}
+
+h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+p { margin: 0; }
+
+button { font-family: inherit; cursor: pointer; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 20px;
+}

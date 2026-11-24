@@ -1,0 +1,225 @@
+// Schermata 1: caricamento del file con l'elenco delle obbligazioni
+
+import { stato, impostaDati, impostaBozza, impostaCostruito } from './state.js';
+import { leggiCsv } from './csv-loader.js';
+import { scaricaDatiAutomatici } from './dati-auto.js';
+import { salva, carica, elimina } from './archivio.js';
+import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, haPortafogli } from './esporta-importa.js';
+
+const radice = document.getElementById('view-dati');
+let messaggio = null; // { tipo: 'errore' | 'avviso', testo: '...' }
+let messaggioPortafogli = null; // stesso formato, per la scheda dei portafogli
+let statoAuto = null; // stesso formato, per il riquadro dell'aggiornamento automatico
+let autoInCorso = false;
+
+function esc(testo) {
+  return String(testo).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function formatoData(iso) {
+  if (!iso) return '—';
+  const p = iso.split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+function formatoDataOra(isoCompleto) {
+  const d = new Date(isoCompleto);
+  return d.toLocaleDateString('it-IT') + ' ' +
+    d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function disegna() {
+  const m = stato.meta;
+
+  let html = `
+    <div class="card card-flex">
+      <div class="card-titolo">Aggiornamento automatico</div>
+      <div class="testo-soft">I prezzi vengono scaricati ogni giorno lavorativo da Simple Tools for Investors e preparati nel tuo sito. All'apertura l'app li carica da sola.</div>
+      <div class="gruppo-bottoni">
+        <button class="btn btn-primario" id="btn-auto"${autoInCorso ? ' disabled' : ''}>Controlla aggiornamenti</button>
+      </div>
+      ${statoAuto ? `<div class="messaggio messaggio-${statoAuto.tipo}">${esc(statoAuto.testo)}</div>` : ''}
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icona">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+      </div>
+      <div class="dropzone-titolo">Oppure trascina qui il file CSV</div>
+      <div class="dropzone-testo">Caricamento manuale: il file con l'elenco delle obbligazioni scaricato da Simple Tools for Investors. Viene letto direttamente nel browser.</div>
+      <button class="btn btn-secondario" id="btn-scegli">Scegli file</button>
+      <input type="file" id="input-file" hidden>
+    </div>`;
+
+  if (messaggio) {
+    html += `<div class="messaggio messaggio-${messaggio.tipo}">${esc(messaggio.testo)}</div>`;
+  }
+
+  if (m) {
+    const valute = Object.keys(m.valute)
+      .sort((a, b) => m.valute[b] - m.valute[a])
+      .map(v => `<span class="chip">${esc(v)} <strong>${m.valute[v].toLocaleString('it-IT')}</strong></span>`)
+      .join('');
+
+    html += `
+      <div class="riga-card">
+        <div class="card card-flex">
+          <div class="card-titolo">File caricato</div>
+          <div>${esc(m.nomeFile)}</div>
+          <div class="testo-soft">${m.righe.toLocaleString('it-IT')} titoli · prezzi del ${formatoData(m.dataRiferimento)}</div>
+          <div class="testo-soft">Caricato il ${formatoDataOra(m.caricatoIl)}. Resta salvato nel browser: non serve ricaricarlo a ogni apertura.</div>
+          <div class="gruppo-bottoni">
+            <button class="btn btn-primario" id="btn-vai">Vai alla selezione</button>
+            <button class="btn btn-secondario" id="btn-rimuovi">Rimuovi dati</button>
+          </div>
+        </div>
+        <div class="card card-flex">
+          <div class="card-titolo">Titoli per valuta</div>
+          <div class="chips">${valute}</div>
+        </div>
+      </div>`;
+  }
+
+  html += `
+    <div class="card card-flex scheda-portafogli">
+      <div class="card-titolo">Portafogli: esporta e importa</div>
+      <div class="testo-soft">Per portare la bozza e il portafoglio costruito su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: viene scaricato in automatico.</div>
+      <div class="gruppo-bottoni">
+        <button class="btn btn-primario" id="btn-esporta">Esporta portafogli</button>
+        <button class="btn btn-secondario" id="btn-importa">Importa portafogli</button>
+        <input type="file" id="input-importa" accept=".json,application/json" hidden>
+      </div>
+      ${messaggioPortafogli ? `<div class="messaggio messaggio-${messaggioPortafogli.tipo}">${esc(messaggioPortafogli.testo)}</div>` : ''}
+    </div>`;
+
+  radice.innerHTML = html;
+  collega();
+}
+
+function collega() {
+  const zona = document.getElementById('dropzone');
+  const input = document.getElementById('input-file');
+
+  document.getElementById('btn-auto').addEventListener('click', () => aggiornaAutomatico(true));
+
+  document.getElementById('btn-scegli').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { if (input.files[0]) leggiFile(input.files[0]); });
+
+  zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('is-over'); });
+  zona.addEventListener('dragleave', () => zona.classList.remove('is-over'));
+  zona.addEventListener('drop', e => {
+    e.preventDefault();
+    zona.classList.remove('is-over');
+    if (e.dataTransfer.files[0]) leggiFile(e.dataTransfer.files[0]);
+  });
+
+  document.getElementById('btn-esporta').addEventListener('click', () => {
+    if (!haPortafogli()) {
+      messaggioPortafogli = { tipo: 'avviso', testo: 'Non c\'è ancora nessun portafoglio da esportare: la bozza e il costruito sono vuoti.' };
+    } else {
+      scaricaTesto(nomeFileEsportazione(), creaEsportazione());
+      messaggioPortafogli = { tipo: 'ok', testo: 'File esportato: lo trovi nella cartella dei download (' + nomeFileEsportazione() + ').' };
+    }
+    disegna();
+  });
+
+  const inputImporta = document.getElementById('input-importa');
+  document.getElementById('btn-importa').addEventListener('click', () => inputImporta.click());
+  inputImporta.addEventListener('change', () => { if (inputImporta.files[0]) importaFile(inputImporta.files[0]); });
+
+  const vai = document.getElementById('btn-vai');
+  if (vai) {
+    vai.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('vai-a', { detail: 'selezione' }));
+    });
+  }
+
+  const rimuovi = document.getElementById('btn-rimuovi');
+  if (rimuovi) {
+    rimuovi.addEventListener('click', () => {
+      elimina();
+      messaggio = null;
+      impostaDati([], null);
+      disegna();
+    });
+  }
+}
+
+async function importaFile(file) {
+  try {
+    const r = leggiImportazione(await file.text());
+    if (haPortafogli() && !confirm('L\'importazione sostituisce la bozza (' + stato.bozza.length + ' titoli) e il portafoglio costruito (' +
+      stato.costruito.length + ' acquisti) che hai ora in questo browser. Continuare?')) return;
+    impostaBozza(r.bozza);
+    impostaCostruito(r.costruito);
+    messaggioPortafogli = {
+      tipo: r.scartati > 0 ? 'avviso' : 'ok',
+      testo: 'Importati ' + r.bozza.length + (r.bozza.length === 1 ? ' titolo' : ' titoli') + ' in bozza e ' + r.costruito.length + (r.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' nel portafoglio costruito.' +
+        (r.scartati > 0 ? ' Voci scartate perché non valide: ' + r.scartati + '.' : '')
+    };
+  } catch (errore) {
+    messaggioPortafogli = { tipo: 'errore', testo: errore.message };
+  }
+  disegna();
+}
+
+async function leggiFile(file) {
+  try {
+    const testo = await file.text();
+    const risultato = leggiCsv(testo, file.name);
+    impostaDati(risultato.titoli, risultato.meta);
+    const salvato = salva(risultato.titoli, risultato.meta);
+    messaggio = salvato ? null : {
+      tipo: 'avviso',
+      testo: 'File letto, ma non è stato possibile salvarlo nel browser: dovrai ricaricarlo alla prossima apertura.'
+    };
+  } catch (errore) {
+    messaggio = { tipo: 'errore', testo: errore.message };
+  }
+  disegna();
+}
+
+// Scarica i dati automatici. Se non è "forzato" e nel browser ci sono già prezzi
+// uguali o più recenti, non cambia nulla.
+async function aggiornaAutomatico(forzato) {
+  if (autoInCorso) return;
+  autoInCorso = true;
+  statoAuto = { tipo: 'ok', testo: 'Controllo dei dati aggiornati…' };
+  disegna();
+
+  try {
+    const r = await scaricaDatiAutomatici();
+    const attuale = stato.meta ? stato.meta.dataRiferimento : null;
+    if (!forzato && attuale && attuale >= r.meta.dataRiferimento) {
+      statoAuto = { tipo: 'ok', testo: 'I dati sono già aggiornati (prezzi del ' + formatoData(attuale) + ').' };
+    } else {
+      impostaDati(r.titoli, r.meta);
+      const salvato = salva(r.titoli, r.meta);
+      statoAuto = {
+        tipo: salvato ? 'ok' : 'avviso',
+        testo: 'Dati aggiornati: ' + r.meta.righe.toLocaleString('it-IT') + ' titoli, prezzi del ' + formatoData(r.meta.dataRiferimento) + '.' +
+          (salvato ? '' : ' Non è stato possibile salvarli nel browser: verranno riscaricati alla prossima apertura.')
+      };
+    }
+  } catch (errore) {
+    const haDati = stato.titoli.length > 0;
+    statoAuto = {
+      tipo: haDati ? 'avviso' : 'errore',
+      testo: 'Aggiornamento automatico non riuscito: ' + errore.message +
+        (haDati ? ' Uso i dati già salvati nel browser.' : ' Carica il file a mano qui sotto.')
+    };
+  }
+
+  autoInCorso = false;
+  disegna();
+}
+
+// Avvio: se c'è già un file salvato nel browser lo ricarico, poi controllo se ce n'è uno più recente
+const salvati = carica();
+if (salvati && salvati.titoli && salvati.meta) {
+  impostaDati(salvati.titoli, salvati.meta);
+}
+disegna();
+aggiornaAutomatico(false);

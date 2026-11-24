@@ -1,0 +1,46 @@
+/* ---------- Grafici (schermata Portafoglio e analisi) ---------- */
+.grafici { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 1300px) { .grafici { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.grafici .card { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.grafici .testo-soft { margin-bottom: 8px; min-height: 18px; }
+
+/* Barre orizzontali: una riga per anno (o per mese) */
+.barre { display: flex; flex-direction: column; gap: 4px; }
+.barra-riga { display: grid; grid-template-columns: 34px 1fr 40px; gap: 8px; align-items: center; height: 18px; }
+.barra-etichetta { font-size: 11px; color: var(--testo-soft); font-variant-numeric: tabular-nums; }
+.barra-area { height: 14px; display: flex; align-items: stretch; }
+.barra-pieno { background: var(--accento); border-radius: 0 4px 4px 0; }
+.barra-riga:hover .barra-pieno { background: #09594A; }
+.barra-valore { font-size: 11px; color: var(--testo-soft); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+/* Barre impilate (flusso di cassa) */
+.seg { height: 100%; }
+.seg-0 { background: var(--accento); }
+.seg-1 { background: #3B82C4; }
+.seg:last-child { border-radius: 0 4px 4px 0; }
+.barra-riga:hover .seg { filter: brightness(0.85); }
+.leg-righe { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin-top: 10px; }
+.leg-voce { display: inline-flex; align-items: center; gap: 6px; }
+.nota-grafico { margin-top: auto; padding-top: 10px; font-size: 12px; color: var(--testo-soft); }
+
+/* Torte (anello) */
+.torta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; }
+.torta-disegno { position: relative; width: 190px; height: 190px; flex: 0 0 auto; }
+.torta-disegno svg { width: 100%; height: 100%; display: block; }
+.torta .fetta { stroke-width: 34; cursor: pointer; outline: none; transition: stroke-width 0.15s, opacity 0.15s; }
+.torta .fetta.is-attiva { stroke-width: 44; }
+.torta.ha-attiva .fetta:not(.is-attiva) { opacity: 0.35; }
+.torta-centro {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 0 44px; text-align: center; pointer-events: none;
+}
+.torta-centro strong { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.torta-centro span { font-size: 11px; color: var(--testo-soft); line-height: 1.25; max-height: 28px; overflow: hidden; }
+.torta-legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 150px; }
+.torta-legenda li { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; font-size: 12px; padding: 3px 6px; border-radius: 6px; cursor: default; }
+.torta-legenda li.is-attiva { background: #EEF0F3; }
+.torta-colore { width: 10px; height: 10px; border-radius: 3px; }
+.torta-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.torta-pct { font-variant-numeric: tabular-nums; color: var(--testo-soft); }
+
+.grafico-vuoto { padding: 40px 0; text-align: center; color: var(--testo-soft); font-size: 13px; }

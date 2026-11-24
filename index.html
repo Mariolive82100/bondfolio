@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BondFolio</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/componenti.css">
+  <link rel="stylesheet" href="css/selezione.css">
+  <link rel="stylesheet" href="css/portafoglio.css">
+  <link rel="stylesheet" href="css/grafici.css">
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">B</span>
+        <span class="brand-name">BondFolio</span>
+        <span class="brand-versione" id="versione"></span>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item is-active" data-view="dati">
+          <span class="nav-num">1</span>
+          <span class="nav-text"><strong>Dati</strong><small>Carica il file MOT</small></span>
+        </button>
+        <button class="nav-item" data-view="selezione">
+          <span class="nav-num">2</span>
+          <span class="nav-text"><strong>Selezione</strong><small>Filtra le obbligazioni</small></span>
+        </button>
+        <button class="nav-item" data-view="portafoglio">
+          <span class="nav-num">3</span>
+          <span class="nav-text"><strong>Portafoglio e analisi</strong><small>Importi, metriche e grafici</small></span>
+        </button>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>Elaborazione locale</strong>
+        <span>Il file resta nel tuo browser. Firebase salva solo i portafogli.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="titolo">Dati</h1>
+          <p id="sottotitolo"></p>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view" id="view-dati"></section>
+        <section class="view" id="view-selezione" hidden></section>
+        <section class="view" id="view-portafoglio" hidden></section>
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
