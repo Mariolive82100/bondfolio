@@ -2,15 +2,12 @@
 
 import { stato, impostaDati, impostaBozza, impostaCostruito } from './state.js';
 import { leggiCsv } from './csv-loader.js';
-import { scaricaDatiAutomatici } from './dati-auto.js';
 import { salva, carica, elimina } from './archivio.js';
 import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, haPortafogli } from './esporta-importa.js';
 
 const radice = document.getElementById('view-dati');
 let messaggio = null; // { tipo: 'errore' | 'avviso', testo: '...' }
 let messaggioPortafogli = null; // stesso formato, per la scheda dei portafogli
-let statoAuto = null; // stesso formato, per il riquadro dell'aggiornamento automatico
-let autoInCorso = false;
 
 function esc(testo) {
   return String(testo).replace(/[&<>"']/g, c => (
@@ -34,21 +31,12 @@ function disegna() {
   const m = stato.meta;
 
   let html = `
-    <div class="card card-flex">
-      <div class="card-titolo">Aggiornamento automatico</div>
-      <div class="testo-soft">I prezzi vengono scaricati ogni giorno lavorativo da Simple Tools for Investors e preparati nel tuo sito. All'apertura l'app li carica da sola.</div>
-      <div class="gruppo-bottoni">
-        <button class="btn btn-primario" id="btn-auto"${autoInCorso ? ' disabled' : ''}>Controlla aggiornamenti</button>
-      </div>
-      ${statoAuto ? `<div class="messaggio messaggio-${statoAuto.tipo}">${esc(statoAuto.testo)}</div>` : ''}
-    </div>
-
     <div class="dropzone" id="dropzone">
       <div class="dropzone-icona">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
       </div>
-      <div class="dropzone-titolo">Oppure trascina qui il file CSV</div>
-      <div class="dropzone-testo">Caricamento manuale: il file con l'elenco delle obbligazioni scaricato da Simple Tools for Investors. Viene letto direttamente nel browser.</div>
+      <div class="dropzone-titolo">Trascina qui il file CSV</div>
+      <div class="dropzone-testo">Il file dei prezzi (End of Day) scaricato dalla sezione «Data export» di Simple Tools for Investors. Viene letto direttamente nel browser e non viene inviato da nessuna parte.</div>
       <button class="btn btn-secondario" id="btn-scegli">Scegli file</button>
       <input type="file" id="input-file" hidden>
     </div>`;
@@ -85,7 +73,7 @@ function disegna() {
   html += `
     <div class="card card-flex scheda-portafogli">
       <div class="card-titolo">Portafogli: esporta e importa</div>
-      <div class="testo-soft">Per portare la bozza e il portafoglio costruito su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: viene scaricato in automatico.</div>
+      <div class="testo-soft">Per portare la bozza e il portafoglio costruito su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: va caricato a mano.</div>
       <div class="gruppo-bottoni">
         <button class="btn btn-primario" id="btn-esporta">Esporta portafogli</button>
         <button class="btn btn-secondario" id="btn-importa">Importa portafogli</button>
@@ -101,8 +89,6 @@ function disegna() {
 function collega() {
   const zona = document.getElementById('dropzone');
   const input = document.getElementById('input-file');
-
-  document.getElementById('btn-auto').addEventListener('click', () => aggiornaAutomatico(true));
 
   document.getElementById('btn-scegli').addEventListener('click', () => input.click());
   input.addEventListener('change', () => { if (input.files[0]) leggiFile(input.files[0]); });
@@ -181,45 +167,9 @@ async function leggiFile(file) {
   disegna();
 }
 
-// Scarica i dati automatici. Se non è "forzato" e nel browser ci sono già prezzi
-// uguali o più recenti, non cambia nulla.
-async function aggiornaAutomatico(forzato) {
-  if (autoInCorso) return;
-  autoInCorso = true;
-  statoAuto = { tipo: 'ok', testo: 'Controllo dei dati aggiornati…' };
-  disegna();
-
-  try {
-    const r = await scaricaDatiAutomatici();
-    const attuale = stato.meta ? stato.meta.dataRiferimento : null;
-    if (!forzato && attuale && attuale >= r.meta.dataRiferimento) {
-      statoAuto = { tipo: 'ok', testo: 'I dati sono già aggiornati (prezzi del ' + formatoData(attuale) + ').' };
-    } else {
-      impostaDati(r.titoli, r.meta);
-      const salvato = salva(r.titoli, r.meta);
-      statoAuto = {
-        tipo: salvato ? 'ok' : 'avviso',
-        testo: 'Dati aggiornati: ' + r.meta.righe.toLocaleString('it-IT') + ' titoli, prezzi del ' + formatoData(r.meta.dataRiferimento) + '.' +
-          (salvato ? '' : ' Non è stato possibile salvarli nel browser: verranno riscaricati alla prossima apertura.')
-      };
-    }
-  } catch (errore) {
-    const haDati = stato.titoli.length > 0;
-    statoAuto = {
-      tipo: haDati ? 'avviso' : 'errore',
-      testo: 'Aggiornamento automatico non riuscito: ' + errore.message +
-        (haDati ? ' Uso i dati già salvati nel browser.' : ' Carica il file a mano qui sotto.')
-    };
-  }
-
-  autoInCorso = false;
-  disegna();
-}
-
-// Avvio: se c'è già un file salvato nel browser lo ricarico, poi controllo se ce n'è uno più recente
+// Avvio: se c'è già un file salvato nel browser lo ricarico
 const salvati = carica();
 if (salvati && salvati.titoli && salvati.meta) {
   impostaDati(salvati.titoli, salvati.meta);
 }
 disegna();
-aggiornaAutomatico(false);
