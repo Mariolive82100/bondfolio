@@ -1,4 +1,4 @@
-// Tiene allineati il browser e Firebase per bozza e portafoglio Costruito.
+// Tiene allineati il browser e Firebase per bozza, portafoglio Costruito e relativo cashflow.
 // Per capire chi è cambiato, ricorda nel browser il contenuto dell'ultimo allineamento riuscito:
 // - è cambiato solo il browser  -> salva online
 // - è cambiato solo l'online    -> aggiorna il browser
@@ -6,6 +6,7 @@
 
 import { stato, impostaBozza, impostaCostruito } from './state.js';
 import { NOMI, impronta, leggiOnline, scriviOnline } from './cloud-portafogli.js';
+import { allineaCashflow } from './cloud-cashflow.js';
 
 const CHIAVE = 'bondfolio_sync_v1';
 const ATTESA = 3000; // millisecondi dopo l'ultima modifica prima di salvare
@@ -63,7 +64,9 @@ export function allinea(scelta) {
       tipo: 'errore',
       testo: codice === 'permission-denied'
         ? 'Firebase ha rifiutato l\'accesso: controlla le regole di sicurezza.'
-        : 'Non salvato online: i dati restano in questo browser.' + (codice ? ' (' + codice + ')' : '')
+        : codice === 'cashflow-troppo-grande'
+          ? 'Portafogli salvati, ma il cashflow è troppo grande per essere salvato online.'
+          : 'Sincronizzazione non completata: i dati restano in questo browser.' + (codice ? ' (' + codice + ')' : '')
     });
   }).then(() => {
     if (inCorso === lavoro) inCorso = null;
@@ -139,8 +142,11 @@ async function esegui(mia, scelta) {
     salvaBase(base);
   }
 
+  // Con i portafogli allineati, aggiorna il cashflow dei loro titoli
+  await allineaCashflow(utente, stato.bozza.concat(stato.costruito).map(x => x.isin));
+  if (mia !== sessione) return;
+
   comunica({ tipo: 'salvato', ora: new Date() });
-  document.dispatchEvent(new CustomEvent('portafogli-allineati'));
 }
 
 function programma() {
@@ -159,6 +165,9 @@ export function salvaSubito() {
 
 ['bozza-aggiornata', 'costruito-aggiornato', 'costruito-corretto'].forEach(evento =>
   document.addEventListener(evento, programma));
+
+// Caricato un nuovo file cashflow: aggiorna le voci online
+document.addEventListener('cashflow-file-caricato', () => { if (uid && !conflitto) allinea(); });
 
 // Torna la connessione: riprova
 window.addEventListener('online', () => { if (ultimoStato.tipo === 'errore') allinea(); });

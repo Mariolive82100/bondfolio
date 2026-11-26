@@ -3,7 +3,7 @@
 import { stato, impostaDati, impostaBozza, impostaCostruito } from './state.js';
 import { leggiCsv } from './csv-loader.js';
 import { salva, carica, elimina } from './archivio.js';
-import { leggiCashflow, impostaCashflow, rimuoviCashflow, cashflowAttuale } from './cashflow-dati.js';
+import { leggiCashflow, impostaCashflow, rimuoviCashflow, fileCashflow, isinOnline } from './cashflow-dati.js';
 import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, haPortafogli } from './esporta-importa.js';
 
 const radice = document.getElementById('view-dati');
@@ -72,21 +72,27 @@ function disegna() {
       </div>`;
   }
 
-  const cf = cashflowAttuale();
+  const cf = fileCashflow();
+  const salvati = isinOnline();
   let corpoCashflow;
   if (cf) {
     const giorniVecchio = Math.round((Date.now() - new Date(cf.dataAcquisto + 'T00:00:00')) / 86400000);
+    const inPortafoglio = new Set(stato.bozza.concat(stato.costruito).map(x => x.isin));
+    const soloOnline = salvati.filter(isin => inPortafoglio.has(isin) && !cf.perIsin.has(isin)).length;
     corpoCashflow = `
       <div>${esc(cf.nomeFile)}</div>
       <div class="testo-soft">${cf.perIsin.size.toLocaleString('it-IT')} titoli · calendario calcolato dal ${formatoData(cf.dataAcquisto)}. Caricato il ${formatoDataOra(cf.caricatoIl)}.</div>
       ${giorniVecchio > 7 ? '<div class="messaggio messaggio-avviso">Il file ha più di una settimana: le cedole già incassate vengono escluse, ma conviene riscaricarlo.</div>' : ''}
+      ${soloOnline > 0 ? `<div class="messaggio messaggio-avviso">${soloOnline === 1 ? '1 titolo del portafoglio non è nel file: uso le voci salvate online.' : soloOnline + ' titoli del portafoglio non sono nel file: uso le voci salvate online.'}</div>` : ''}
       <div class="gruppo-bottoni">
         <button class="btn btn-secondario" id="btn-scegli-cashflow">Sostituisci file</button>
         <button class="btn btn-secondario" id="btn-rimuovi-cashflow">Rimuovi</button>
       </div>`;
   } else {
     corpoCashflow = `
-      <div class="testo-soft">Non ancora caricato: finché manca, il portafoglio mostra una stima di cedole e rimborsi.</div>
+      <div class="testo-soft">${salvati.length > 0
+        ? `File non caricato in questo browser. Uso le voci salvate online (${salvati.length} ${salvati.length === 1 ? 'titolo' : 'titoli'}): per i titoli nuovi carica il file.`
+        : 'Non ancora caricato: finché manca, il portafoglio mostra una stima di cedole e rimborsi.'}</div>
       <div class="gruppo-bottoni">
         <button class="btn btn-primario" id="btn-scegli-cashflow">Scegli file cashflow</button>
       </div>`;
@@ -94,7 +100,7 @@ function disegna() {
   html += `
     <div class="card card-flex">
       <div class="card-titolo">Calendario incassi (facoltativo)</div>
-      <div class="testo-soft">Il file dei cashflow scaricato dalla sezione «Data export» di Simple Tools for Investors. Con questo file l'analisi del portafoglio mostra date e importi reali di cedole, tasse e rimborsi. Viene letto nel tuo browser e non viene inviato da nessuna parte.</div>
+      <div class="testo-soft">Il file dei cashflow scaricato dalla sezione «Data export» di Simple Tools for Investors. Con questo file l'analisi del portafoglio mostra date e importi reali di cedole, tasse e rimborsi. Il file resta nel tuo browser; se hai fatto l'accesso, online vengono salvate solo le voci dei titoli in bozza e nel Costruito.</div>
       ${corpoCashflow}
       <input type="file" id="input-cashflow" accept=".csv,text/csv" hidden>
       ${messaggioCashflow ? `<div class="messaggio messaggio-${messaggioCashflow.tipo}">${esc(messaggioCashflow.testo)}</div>` : ''}
@@ -220,6 +226,9 @@ async function leggiFileCashflow(file) {
   }
   disegna();
 }
+
+// La scheda del cashflow dipende anche da quello che arriva online e dai titoli in portafoglio
+['cashflow-aggiornato', 'bozza-aggiornata', 'costruito-aggiornato'].forEach(evento => document.addEventListener(evento, disegna));
 
 // Avvio: se c'è già un file salvato nel browser lo ricarico
 const salvati = carica();
