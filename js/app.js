@@ -4,6 +4,7 @@ import { VERSIONE } from './versione.js';
 import './vista-dati.js';
 import './vista-selezione.js';
 import './vista-portafoglio.js';
+import './vista-account.js';
 
 const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni scaricato da Simple Tools for Investors"],
