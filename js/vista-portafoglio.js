@@ -5,6 +5,7 @@ import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNet
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { htmlCostruito, aggiornaCostruito, htmlConferma, aggiornaConferma, aggiornaImpatto, inConferma, annullaConferma } from './vista-costruito.js';
 import { cedolaNetta } from './filtri.js';
+import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
 import { dataCalcolo, dataFile, giorniFileVecchio } from './data-calcolo.js';
@@ -130,6 +131,8 @@ function disegna() {
 
       <div id="impatto-box"></div>
 
+      ${htmlCapitalGain(['scadenza'], 'prezzo del file')}
+
       ${htmlPannelloAnalisi()}
     </div>`;
 
@@ -156,6 +159,9 @@ function aggiornaNumeri() {
   set('riassunto-bozza', tot.numero + (tot.numero === 1 ? ' titolo' : ' titoli') + ' · nominale ' + fmtNum(tot.nominale, 0) + ' €');
   aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo());
   aggiornaImpatto();
+  // In bozza si comprerebbe ai prezzi del file
+  aggiornaCapitalGain(['scadenza'], posizioni.filter(p => p.valida)
+    .map(p => ({ isin: p.isin, nominale: p.nominale, prezzoCarico: p.titolo.prezzo })), stato.titoli);
 
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'

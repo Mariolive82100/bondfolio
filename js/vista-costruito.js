@@ -12,6 +12,7 @@ import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello
 import { etichettaDaOrdinale } from './rating.js';
 import { esc, fmtNum, leggiNumero, oggiIso } from './formati.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
+import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
 
 const radice = document.getElementById('view-portafoglio');
 
@@ -165,6 +166,8 @@ export function htmlCostruito() {
       <div class="card"><div class="testo-soft">Rendimento netto all'acquisto (stima)</div><div class="valore" id="r-rend-comm"></div><div class="testo-soft" id="r-rend-comm-nota"></div></div>
     </div>
 
+    ${htmlCapitalGain(['scadenza', 'oggi'], 'tuo prezzo medio di carico (i rimborsi netti nei grafici seguono invece il file cashflow, che non conosce quel prezzo)')}
+
     <section class="card tabella-card${classeChiusa('tab-costruito')}">
       ${testaComprimibile('tab-costruito', 'Acquisti', 'riassunto-costruito')}
       <div class="tabella-scroll"><div class="tabella tabella-costruito">
@@ -184,6 +187,7 @@ export function aggiornaCostruito() {
   const posizioni = risolviPosizioni(sommaPerIsin(stato.costruito), stato.titoli);
   const tot = calcolaTotali(posizioni);
   aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento());
+  aggiornaCapitalGain(['scadenza', 'oggi'], stato.costruito, stato.titoli);
 
   const r = riepilogoAcquisti(stato.costruito, stato.titoli);
   const ind = calcolaIndicatori(posizioni, dataRiferimento());

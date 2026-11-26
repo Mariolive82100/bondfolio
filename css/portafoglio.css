@@ -89,3 +89,7 @@
 .card.chiusa .tabella-scroll, .card.chiusa .tabella-piede { display: none; }
 .card:not(.chiusa) > .sezione-testa { border-bottom: 1px solid #EEF0F3; }
 #impatto-box:empty { display: none; }
+
+/* ---------- Capital gain ---------- */
+.riepilogo-blocco { display: flex; flex-direction: column; gap: 6px; }
+.riepilogo.riepilogo-gain { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }

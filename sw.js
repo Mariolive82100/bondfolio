@@ -25,6 +25,7 @@ const FILE_APP = [
   'js/app.js',
   'js/archivio.js',
   'js/auth.js',
+  'js/capital-gain.js',
   'js/cashflow-calcoli.js',
   'js/cashflow-dati.js',
   'js/cloud-cashflow.js',
