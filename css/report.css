@@ -3,7 +3,8 @@
 #report { display: none; }
 
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
+  /* Foglio verticale: il PDF si apre già dritto, senza doverlo ruotare */
+  @page { size: A4 portrait; margin: 10mm; }
 
   body.stampa-report { background: #fff; padding: 0 !important; }
   body.stampa-report > .app { display: none !important; }
@@ -31,22 +32,26 @@
   #report .riepilogo.riepilogo-gain { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
   #report .riepilogo-blocco { gap: 3px; break-inside: avoid; }
 
+  #report .nota-gain { font-size: 9px; }
+
   /* Tabelle: l'intestazione si ripete su ogni pagina e le righe non si spezzano */
-  .report-tabella { width: 100%; border-collapse: collapse; font-size: 10px; }
-  .report-tabella th { text-align: left; vertical-align: bottom; padding: 4px; border-bottom: 1px solid #8A94A3; }
-  .report-tabella td { padding: 4px; border-bottom: 1px solid #E3E6EA; vertical-align: top; }
+  .report-tabella { width: 100%; border-collapse: collapse; font-size: 9px; }
+  .report-tabella th { text-align: left; vertical-align: bottom; padding: 4px 3px; line-height: 1.2; border-bottom: 1px solid #8A94A3; }
+  .report-tabella td { padding: 4px 3px; border-bottom: 1px solid #E3E6EA; vertical-align: top; }
   .report-tabella .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .report-tabella strong, .report-tabella small { display: block; }
-  .report-tabella small { color: var(--testo-soft); font-size: 9px; }
+  .report-tabella small { color: var(--testo-soft); font-size: 8px; }
+  .report-tabella td:first-child { overflow-wrap: anywhere; min-width: 96px; }
   .report-tabella tr { break-inside: avoid; }
+  .report-tabella .report-coda { break-inside: avoid; }
   .report-totale td { font-weight: 700; border-top: 1px solid #8A94A3; }
 
   #report .impatto { margin-top: 12px; break-inside: avoid; }
   #report .tabella-impatto { min-width: 0; }
   #report .tabella-impatto .riga { padding-top: 3px; padding-bottom: 3px; }
 
-  /* Grafici: quattro affiancati, righe sottili perché anche le scadenze lontane stiano in pagina */
-  #report .grafici { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+  /* Grafici: due affiancati, righe sottili perché anche le scadenze lontane stiano in pagina */
+  #report .grafici { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
   #report .grafici .card { break-inside: avoid; }
   #report .barre { gap: 0; }
   #report .barra-riga { height: 9.8px; line-height: 1; grid-template-columns: 38px minmax(0, 1fr) 36px; gap: 5px; }
@@ -69,7 +74,9 @@
   .report-calendario div[style] { max-height: none !important; overflow: visible !important; }
   .report-calendario th { position: static !important; }
   .report-calendario tr { break-inside: avoid; }
-  .report-calendario td { padding-top: 3px !important; padding-bottom: 3px !important; font-size: 10px; }
+  .report-calendario table { font-size: 9px !important; }
+  .report-calendario th, .report-calendario td { padding: 3px !important; font-size: 9px; }
+  .report-calendario th { vertical-align: bottom; }
 
   .report-nota { color: var(--testo-soft); font-size: 10px; }
   .report-avvertenza { margin-top: 10px; }

@@ -21,6 +21,11 @@ const num = (v, testo) => `<td class="num">${v === null || v === undefined ? '�
 const cellaTitolo = (nome, isin) => `<td><strong>${esc(nome)}</strong><small>${esc(isin)}</small></td>`;
 const testa = colonne => '<thead><tr>' + colonne.map(c => `<th${c[1] ? ' class="num"' : ''}>${c[0]}</th>`).join('') + '</tr></thead>';
 
+// L'ultimo titolo e la riga del totale stanno insieme: il totale non resta mai da solo in una pagina
+function corpo(righe, totale) {
+  return `<tbody>${righe.slice(0, -1).join('')}</tbody><tbody class="report-coda">${righe.slice(-1).join('')}${totale}</tbody>`;
+}
+
 function tabellaBozza() {
   const posizioni = risolviPosizioni(stato.bozza, stato.titoli);
   const tot = calcolaTotali(posizioni);
@@ -32,13 +37,12 @@ function tabellaBozza() {
       ${num(t.rendNetto, fmtNum(t.rendNetto) + '%')}${num(t.durationLorda, fmtNum(t.durationLorda, 1))}
       ${num(p.nominale, fmtNum(p.nominale, 0))}${num(peso(p, tot), fmtNum(peso(p, tot), 1) + '%')}
       ${num(p.controvalore, fmtNum(p.controvalore, 0))}${num(p.cedolaAnnuaNetta, fmtNum(p.cedolaAnnuaNetta))}</tr>`;
-  }).join('');
+  });
   return `<table class="report-tabella">
     ${testa([['Titolo'], ['Emittente'], ['Scadenza'], ['Cedola netta', 1], ['Prezzo', 1], ['Rend. netto', 1], ['Duration', 1], ['Nominale', 1], ['Peso', 1], ['Capitale stimato (€)', 1], ['Cedola annua netta (€)', 1]])}
-    <tbody>${righe}
-      <tr class="report-totale"><td colspan="7">Totale dei titoli inclusi nei calcoli</td>
-        <td class="num">${fmtNum(tot.nominale, 0)}</td><td></td><td class="num">${fmtNum(tot.controvalore, 0)}</td><td class="num">${fmtNum(tot.cedoleNette)}</td></tr>
-    </tbody></table>`;
+    ${corpo(righe, `<tr class="report-totale"><td colspan="7">Totale dei titoli inclusi nei calcoli</td>
+        <td class="num">${fmtNum(tot.nominale, 0)}</td><td></td><td class="num">${fmtNum(tot.controvalore, 0)}</td><td class="num">${fmtNum(tot.cedoleNette)}</td></tr>`)}
+    </table>`;
 }
 
 // Nel Costruito ci sono solo i dati dell'acquisto: niente prezzi o valori di oggi
@@ -54,17 +58,16 @@ function tabellaCostruito() {
       <td class="num">${fmtNum(l.nominale, 0)}</td><td class="num">${fmtNum(l.prezzoCarico, 3)}</td>
       <td class="num">${fmtNum(l.nominale * l.prezzoCarico / 100, 0)}</td>
       <td class="num">${fmtNum(l.commissioni || 0)}</td><td class="num">${fmtNum(l.nominale * (cedolaNetta(t) || 0) / 100)}</td></tr>`;
-  }).join('');
+  });
   const r = riepilogoAcquisti(stato.costruito, stato.titoli);
   const cedole = calcolaTotali(risolviPosizioni(stato.costruito, stato.titoli)).cedoleNette;
   return `<table class="report-tabella">
     ${testa([['Titolo'], ['Scadenza'], ['Data acquisto'], ['Nominale', 1], ['Prezzo di carico', 1], ['Capitale investito (€)', 1], ['Commissioni (€)', 1], ['Cedola annua netta (€)', 1]])}
-    <tbody>${righe}
-      <tr class="report-totale"><td colspan="3">Totale degli acquisti inclusi nei calcoli</td>
+    ${corpo(righe, `<tr class="report-totale"><td colspan="3">Totale degli acquisti inclusi nei calcoli</td>
         <td class="num">${fmtNum(nominale, 0)}</td><td></td>
         <td class="num">${fmtNum(r.capitaleInvestito, 0)}</td>
-        <td class="num">${fmtNum(r.commissioni)}</td><td class="num">${fmtNum(cedole)}</td></tr>
-    </tbody></table>`;
+        <td class="num">${fmtNum(r.commissioni)}</td><td class="num">${fmtNum(cedole)}</td></tr>`)}
+    </table>`;
 }
 
 // Copia di un pezzo della schermata (senza identificativi, che nella pagina devono restare unici)
