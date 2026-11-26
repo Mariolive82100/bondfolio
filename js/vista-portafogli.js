@@ -21,9 +21,7 @@ function disegna() {
       <button type="button" class="btn btn-secondario btn-piccolo" data-pf="elimina"${principale
         ? ' disabled title="Il primo portafoglio non si può eliminare"' : ''}>Elimina</button>
     </div>
-    <div class="pf-nota${principale ? '' : ' pf-nota-locale'}">${principale
-      ? 'Se hai fatto l\'accesso, viene salvato anche online.'
-      : 'Solo su questo dispositivo: per ora online si salva soltanto «' + esc(nomePortafoglio(PRINCIPALE)) + '».'}</div>`;
+    <div class="pf-nota">Se hai fatto l'accesso, viene salvato anche online.</div>`;
 }
 
 // Chiede un nome; null se si annulla o si lascia vuoto
@@ -48,7 +46,10 @@ barra.addEventListener('click', e => {
     if (nome !== null) cambiaPortafoglio(creaPortafoglio(nome));
   } else if (bottone.dataset.pf === 'rinomina') {
     const nome = chiediNome('Nuovo nome del portafoglio', attuale);
-    if (nome !== null) { rinominaPortafoglio(id, nome); disegna(); }
+    if (nome === null) return;
+    rinominaPortafoglio(id, nome);
+    disegna();
+    document.dispatchEvent(new CustomEvent('elenco-portafogli-cambiato'));
   } else if (bottone.dataset.pf === 'duplica') {
     const nome = chiediNome('Nome della copia di «' + attuale + '»', nomeLibero(attuale + ' - copia'));
     if (nome === null) return;
@@ -58,13 +59,14 @@ barra.addEventListener('click', e => {
     cambiaPortafoglio(copia);
   } else if (bottone.dataset.pf === 'elimina' && id !== PRINCIPALE) {
     const quanti = leggiLista(id, 'bozza').length + ' titoli in bozza e ' + leggiLista(id, 'costruito').length + ' acquisti nel Costruito';
-    if (!confirm('Eliminare il portafoglio «' + attuale + '» (' + quanti + ')? Non si può annullare.')) return;
+    if (!confirm('Eliminare il portafoglio «' + attuale + '» (' + quanti + ')? Se usi il salvataggio online, sparirà anche dagli altri dispositivi. Non si può annullare.')) return;
     eliminaPortafoglio(id);
     cambiaPortafoglio(PRINCIPALE);
   }
 });
 
 document.addEventListener('portafoglio-cambiato', disegna);
+document.addEventListener('elenco-portafogli-aggiornato', disegna);
 // Un'altra scheda del browser ha cambiato l'elenco
 window.addEventListener('storage', e => { if (e.key === 'bondfolio_portafogli_v1') disegna(); });
 

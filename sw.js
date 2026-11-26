@@ -46,6 +46,7 @@ const FILE_APP = [
   'js/rating.js',
   'js/rendimento.js',
   'js/sincronizzazione.js',
+  'js/sync-piano.js',
   'js/state.js',
   'js/versione.js',
   'js/vista-account.js',

@@ -1,7 +1,6 @@
 // Riquadro in alto a destra (accesso e stato del salvataggio online)
 // e riquadro per scegliere quando i dati del browser e quelli online sono diversi.
 
-import { PRINCIPALE, nomePortafoglio } from './portafogli.js';
 import { avviaAccesso, accedi, esci, messaggioErrore } from './auth.js';
 import { ascoltaSincronizzazione, impostaUtente, allinea, salvaSubito } from './sincronizzazione.js';
 import { esc } from './formati.js';
@@ -53,23 +52,50 @@ function disegna() {
   }
 }
 
+// Testi del riquadro per ciascun tipo di scelta
+function testiScelta(c) {
+  const nome = '«' + c.nome + '»';
+  const elenca = d => `${d.bozza} ${d.bozza === 1 ? 'titolo' : 'titoli'} in bozza · ${d.costruito} ${d.costruito === 1 ? 'acquisto' : 'acquisti'} nel Costruito`;
+  const quando = c.online.aggiornato ? ' · modificati il ' + new Date(c.online.aggiornato).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  if (c.tipo === 'eliminatoQui') {
+    return {
+      titolo: `Hai eliminato qui il portafoglio ${nome}, ma online risulta diverso (forse modificato su un altro dispositivo). Cosa faccio?`,
+      righe: ['Online: ' + elenca(c.online) + quando],
+      locale: ['Eliminalo anche online', `Eliminare ${nome} anche online e dagli altri dispositivi?`],
+      online: ['Recuperalo qui', `Recuperare ${nome} in questo browser?`]
+    };
+  }
+  if (c.tipo === 'eliminatoOnline') {
+    return {
+      titolo: `Il portafoglio ${nome} risulta eliminato online, ma qui ha modifiche non salvate. Cosa faccio?`,
+      righe: ['Questo browser: ' + elenca(c.locale)],
+      locale: ['Tienilo e salvalo online', `Tenere ${nome} e salvarlo di nuovo online?`],
+      online: ['Eliminalo anche qui', `Eliminare ${nome} da questo browser? Non si può annullare.`]
+    };
+  }
+  return {
+    titolo: `Portafoglio ${nome}: i dati di questo browser e quelli online sono diversi. Quali vuoi tenere?`,
+    righe: ['Questo browser: ' + elenca(c.locale), 'Online: ' + elenca(c.online) + quando],
+    locale: ['Tieni quelli di questo browser', `${nome}: sostituire i dati online con quelli di questo browser?`],
+    online: ['Usa quelli online', `${nome}: sostituire i dati di questo browser con quelli online?`]
+  };
+}
+
 function disegnaScelta() {
   riquadro.hidden = salvataggio.tipo !== 'scelta';
   if (riquadro.hidden) return;
   const c = salvataggio.conflitto;
-  const conta = d => `${d.bozza} ${d.bozza === 1 ? 'titolo' : 'titoli'} in bozza · ${d.costruito} ${d.costruito === 1 ? 'acquisto' : 'acquisti'} nel Costruito`;
-  const quando = c.online.aggiornato ? ' · modificati il ' + new Date(c.online.aggiornato).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  const t = testiScelta(c);
   riquadro.innerHTML = `
-    <strong>Portafoglio «${esc(nomePortafoglio(PRINCIPALE))}»: i dati di questo browser e quelli online sono diversi. Quali vuoi tenere?</strong>
-    <div>Questo browser: ${conta(c.locale)}</div>
-    <div>Online: ${conta(c.online)}${quando}</div>
-    <div class="scelta-nota">I dati diversi che non scegli vengono sostituiti. Se hai un dubbio, prima salvane una copia con «Esporta portafogli» nella schermata Dati.</div>
+    <strong>${esc(t.titolo)}</strong>
+    ${t.righe.map(r => `<div>${esc(r)}</div>`).join('')}
+    <div class="scelta-nota">${c.quante > 1 ? 'Scelte da fare: ' + c.quante + ' (una per portafoglio). ' : ''}Quello che non scegli va perso. Se hai un dubbio, prima salva una copia con «Esporta portafogli» nella schermata Dati.</div>
     <div class="scelta-bottoni">
-      <button class="btn btn-secondario" id="btn-tieni-locale">Tieni quelli di questo browser</button>
-      <button class="btn btn-secondario" id="btn-tieni-online">Usa quelli online</button>
+      <button class="btn btn-secondario" id="btn-tieni-locale">${esc(t.locale[0])}</button>
+      <button class="btn btn-secondario" id="btn-tieni-online">${esc(t.online[0])}</button>
     </div>`;
-  document.getElementById('btn-tieni-locale').addEventListener('click', () => scegli('locale', 'Sostituire i dati online con quelli di questo browser?'));
-  document.getElementById('btn-tieni-online').addEventListener('click', () => scegli('online', 'Sostituire i dati di questo browser con quelli online?'));
+  document.getElementById('btn-tieni-locale').addEventListener('click', () => scegli('locale', t.locale[1]));
+  document.getElementById('btn-tieni-online').addEventListener('click', () => scegli('online', t.online[1]));
 }
 
 function scegli(quale, domanda) {

@@ -13,7 +13,6 @@
 .pf-bottoni { display: flex; flex-wrap: wrap; gap: 8px; }
 .pf-bottoni .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .pf-nota { margin-left: auto; font-size: 12px; color: var(--testo-soft); }
-.pf-nota-locale { padding: 4px 10px; border-radius: 8px; background: #FEF3C7; color: #92400E; font-weight: 500; }
 
 @media (max-width: 820px) {
   .barra-portafogli { padding: 10px 12px; margin-bottom: 12px; gap: 8px; }

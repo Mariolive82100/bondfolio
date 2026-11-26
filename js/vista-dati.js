@@ -239,7 +239,7 @@ async function leggiFileCashflow(file) {
 }
 
 // La scheda del cashflow dipende anche da quello che arriva online e dai titoli in portafoglio
-['cashflow-aggiornato', 'bozza-aggiornata', 'costruito-aggiornato'].forEach(evento => document.addEventListener(evento, disegna));
+['cashflow-aggiornato', 'bozza-aggiornata', 'costruito-aggiornato', 'elenco-portafogli-aggiornato'].forEach(evento => document.addEventListener(evento, disegna));
 
 // Avvio: se c'è già un file salvato nel browser lo ricarico
 const salvati = carica();

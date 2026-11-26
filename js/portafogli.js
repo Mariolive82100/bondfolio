@@ -1,11 +1,12 @@
 // Elenco dei portafogli e dati di ciascuno (bozza + costruito), salvati nel browser.
 // "Principale" usa le stesse chiavi di quando il portafoglio era uno solo: i dati esistenti non vengono spostati.
-// Per ora online si salva solo "Principale" (vedi sincronizzazione.js).
+// Il salvataggio online è in sincronizzazione.js.
 
 export const PRINCIPALE = 'principale';
 export const NOME_MAX = 40;
 
 const CHIAVE_ELENCO = 'bondfolio_portafogli_v1';
+const CHIAVE_ELIMINATI = 'bondfolio_eliminati_v1'; // eliminati qui e non ancora comunicati online
 const CHIAVI = { bozza: 'bondfolio_bozza_v1', costruito: 'bondfolio_costruito_v1' };
 
 const chiave = (id, nome) => (id === PRINCIPALE ? CHIAVI[nome] : CHIAVI[nome] + ':' + id);
@@ -56,11 +57,30 @@ export function scriviLista(id, nome, lista) {
   try { localStorage.setItem(chiave(id, nome), JSON.stringify(lista)); return true; } catch (e) { return false; }
 }
 
+export function leggiEliminati() {
+  try {
+    const lista = JSON.parse(localStorage.getItem(CHIAVE_ELIMINATI) || '[]');
+    return Array.isArray(lista) ? lista : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function scriviEliminati(lista) {
+  try { localStorage.setItem(CHIAVE_ELIMINATI, JSON.stringify(lista)); } catch (e) { /* niente da fare */ }
+}
+
+export function dimenticaEliminato(id) {
+  const lista = leggiEliminati();
+  if (lista.includes(id)) scriviEliminati(lista.filter(x => x !== id));
+}
+
 export const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 export function creaPortafoglio(nome, id = nuovoId()) {
   const libero = nomeLibero(nome, id);
-  modifica(d => { d.elenco.push({ id: id, nome: libero }); });
+  dimenticaEliminato(id); // ricreato (per esempio importando un file): non è più da eliminare
+  modifica(d => { if (!d.elenco.some(p => p.id === id)) d.elenco.push({ id: id, nome: libero }); });
   return id;
 }
 
@@ -76,6 +96,7 @@ export function eliminaPortafoglio(id) {
     d.elenco = d.elenco.filter(p => p.id !== id);
     if (d.attivo === id) d.attivo = PRINCIPALE;
   });
+  scriviEliminati(leggiEliminati().filter(x => x !== id).concat(id));
   try {
     localStorage.removeItem(chiave(id, 'bozza'));
     localStorage.removeItem(chiave(id, 'costruito'));

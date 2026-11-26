@@ -1,10 +1,16 @@
-// Lettura e scrittura di bozza e portafoglio Costruito su Firestore.
-// Un documento per ciascuno: utenti/{uid}/portafogli/bozza e .../costruito
+// Lettura e scrittura dei portafogli su Firestore.
+// Un documento per portafoglio: utenti/{uid}/elencoPortafogli/{id}
+//   { aggiornato, nome, eliminato, bozza: [...], costruito: [...] }
+// Un portafoglio eliminato resta come documento con eliminato = true, così gli altri dispositivi lo vengono a sapere.
+// I documenti delle versioni con un solo portafoglio (utenti/{uid}/portafogli/bozza e .../costruito)
+// vengono solo letti, finché non esiste quello nuovo di "Principale": non vengono più modificati.
 
 import { avviaFirebase, moduloFirebase } from './firebase-config.js';
+import { PRINCIPALE } from './portafogli.js';
 
 export const NOMI = ['bozza', 'costruito'];
-const CAMPO = { bozza: 'titoli', costruito: 'acquisti' }; // nome dell'elenco dentro il documento
+const CAMPO_VECCHIO = { bozza: 'titoli', costruito: 'acquisti' };
+const RACCOLTA = 'elencoPortafogli';
 
 // "firestore-lite" è la versione leggera: legge e scrive solo quando lo chiediamo noi
 async function prepara() {
@@ -12,8 +18,6 @@ async function prepara() {
   const fs = await moduloFirebase('firestore-lite');
   return { fs: fs, db: fs.getFirestore(app) };
 }
-
-const riferimento = (fs, db, uid, nome) => fs.doc(db, 'utenti', uid, 'portafogli', nome);
 
 // Tiene solo i campi da salvare, sempre nello stesso ordine
 export function pulisci(nome, lista) {
@@ -30,32 +34,67 @@ export function impronta(nome, lista) {
   return JSON.stringify(pulisci(nome, lista));
 }
 
-function leggiDocumento(nome, istantanea) {
-  if (!istantanea.exists()) return null;
-  const d = istantanea.data();
-  if (!Array.isArray(d[CAMPO[nome]])) throw new Error('Il documento online «' + nome + '» non è nel formato previsto.');
-  return { lista: pulisci(nome, d[CAMPO[nome]]), aggiornato: d.aggiornato || null };
+const improntaDocumento = d => (d
+  ? JSON.stringify([d.nome, d.eliminato, impronta('bozza', d.bozza), impronta('costruito', d.costruito)])
+  : null);
+
+function formatoErrato(id) {
+  return new Error('Il documento online «' + id + '» non è nel formato previsto.');
 }
 
-// Restituisce { bozza, costruito }: per ciascuno { lista, aggiornato }, oppure null se online non c'è ancora
+function interpreta(id, d) {
+  if (typeof d.nome !== 'string' || !Array.isArray(d.bozza) || !Array.isArray(d.costruito)) throw formatoErrato(id);
+  return {
+    nome: d.nome, eliminato: d.eliminato === true,
+    bozza: pulisci('bozza', d.bozza), costruito: pulisci('costruito', d.costruito),
+    aggiornato: d.aggiornato || null
+  };
+}
+
+// "Principale" salvato da una versione precedente: gli elenchi mancanti valgono null
+async function leggiVecchi(fs, db, uid) {
+  const documenti = await Promise.all(NOMI.map(n => fs.getDoc(fs.doc(db, 'utenti', uid, 'portafogli', n))));
+  const risultato = { nome: null, eliminato: false, bozza: null, costruito: null, aggiornato: null, vecchio: true };
+  NOMI.forEach((n, i) => {
+    if (!documenti[i].exists()) return;
+    const d = documenti[i].data();
+    if (!Array.isArray(d[CAMPO_VECCHIO[n]])) throw formatoErrato(n);
+    risultato[n] = pulisci(n, d[CAMPO_VECCHIO[n]]);
+    if (d.aggiornato && !(risultato.aggiornato > d.aggiornato)) risultato.aggiornato = d.aggiornato;
+  });
+  return NOMI.some(n => risultato[n] !== null) ? risultato : null;
+}
+
+// Restituisce una Map: id -> { nome, eliminato, bozza, costruito, aggiornato }
 export async function leggiOnline(uid) {
   const { fs, db } = await prepara();
-  const documenti = await Promise.all(NOMI.map(n => fs.getDoc(riferimento(fs, db, uid, n))));
-  const risultato = {};
-  NOMI.forEach((n, i) => { risultato[n] = leggiDocumento(n, documenti[i]); });
+  const risposta = await fs.getDocs(fs.collection(db, 'utenti', uid, RACCOLTA));
+  const risultato = new Map();
+  risposta.docs.forEach(d => risultato.set(d.id, interpreta(d.id, d.data())));
+  if (!risultato.has(PRINCIPALE)) {
+    const vecchio = await leggiVecchi(fs, db, uid);
+    if (vecchio) risultato.set(PRINCIPALE, vecchio);
+  }
   return risultato;
 }
 
-// Scrive un elenco solo se online c'è ancora quello che avevamo letto (improntaAttesa; null = non esisteva).
+// Scrive un portafoglio solo se online c'è ancora quello che avevamo letto (atteso; null = non esisteva).
 // Restituisce false, senza scrivere, se nel frattempo è stato cambiato da un altro dispositivo.
-export async function scriviOnline(uid, nome, lista, improntaAttesa) {
+export async function scriviOnline(uid, id, dati, atteso) {
   const { fs, db } = await prepara();
-  const rif = riferimento(fs, db, uid, nome);
+  const rif = fs.doc(db, 'utenti', uid, RACCOLTA, id);
+  const improntaAttesa = atteso && !atteso.vecchio ? improntaDocumento(atteso) : null;
   return fs.runTransaction(db, async operazione => {
-    const attuale = leggiDocumento(nome, await operazione.get(rif));
-    const improntaAttuale = attuale ? impronta(nome, attuale.lista) : null;
-    if (improntaAttuale !== improntaAttesa) return false;
-    operazione.set(rif, { aggiornato: new Date().toISOString(), [CAMPO[nome]]: pulisci(nome, lista) });
+    const istantanea = await operazione.get(rif);
+    const attuale = istantanea.exists() ? interpreta(id, istantanea.data()) : null;
+    if (improntaDocumento(attuale) !== improntaAttesa) return false;
+    operazione.set(rif, {
+      aggiornato: new Date().toISOString(),
+      nome: dati.nome,
+      eliminato: dati.eliminato,
+      bozza: pulisci('bozza', dati.bozza),
+      costruito: pulisci('costruito', dati.costruito)
+    });
     return true;
   });
 }
