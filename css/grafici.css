@@ -6,8 +6,8 @@
 
 /* Barre orizzontali: una riga per anno (o per mese) */
 .barre { display: flex; flex-direction: column; gap: 4px; }
-.barra-riga { display: grid; grid-template-columns: 34px 1fr 40px; gap: 8px; align-items: center; height: 18px; }
-.barra-etichetta { font-size: 11px; color: var(--testo-soft); font-variant-numeric: tabular-nums; }
+.barra-riga { display: grid; grid-template-columns: 48px minmax(0, 1fr) 40px; gap: 8px; align-items: center; height: 18px; }
+.barra-etichetta { font-size: 11px; white-space: nowrap; color: var(--testo-soft); font-variant-numeric: tabular-nums; }
 .barra-area { height: 14px; display: flex; align-items: stretch; }
 .barra-pieno { background: var(--accento); border-radius: 0 4px 4px 0; }
 .barra-riga:hover .barra-pieno { background: #09594A; }
