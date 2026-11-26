@@ -17,11 +17,14 @@
 
 .portafoglio .messaggio { margin-top: 0; }
 
+/* Bozza: tabella compatta, sta tutta nello schermo da circa 1300px di larghezza in su */
 .tabella-portafoglio .riga, .tabella-portafoglio .riga-testa {
-  grid-template-columns: minmax(200px, 2.2fr) 90px 80px 66px 76px 76px 68px 76px 118px 62px 124px 40px;
+  grid-template-columns: minmax(180px, 2.2fr) 78px 56px 54px 54px 54px 56px 58px 96px 46px 96px 32px;
+  gap: 8px; padding-left: 14px; padding-right: 14px;
 }
+.tabella-portafoglio .input-nominale { padding: 0 8px; }
 .riga-esclusa { background: #FBF6F5; }
-.tabella-portafoglio { min-width: 1260px; }
+.tabella-portafoglio { min-width: 976px; }
 .riga-esclusa .esclusa-motivo { grid-column: 2 / 12; }
 
 .input-nominale {
