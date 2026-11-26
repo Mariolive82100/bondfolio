@@ -43,3 +43,6 @@
 .messaggio-errore { background: #FDE8E4; color: #9A2B1A; }
 .messaggio-avviso { background: #FEF3C7; color: #92400E; }
 .messaggio-ok { background: #E3F1ED; color: #0B5A4A; }
+
+/* Schermata Dati: spazio tra un riquadro e il successivo */
+#view-dati > .card { margin-top: 20px; }

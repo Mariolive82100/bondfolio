@@ -1,5 +1,5 @@
-// Calendario degli incassi: lettura del file cashflow.csv scaricato a mano da Simple Tools for Investors
-// (sezione «Data export»). Il file contiene gli eventi di cedola, rimborso e tasse per 10.000 € di nominale.
+// Calendario degli incassi: lettura del file cashflow.csv caricato a mano
+// Il file contiene gli eventi di cedola, rimborso e tasse per 10.000 € di nominale.
 // Formato: separatore ";", decimali con la virgola, date gg/mm/aaaa.
 // Il file viene letto nel browser e salvato (in forma compatta) nel browser: il file non viene inviato da nessuna parte.
 // Se si è fatto l'accesso, online vanno solo le voci dei titoli in portafoglio (vedi cloud-cashflow.js).

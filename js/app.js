@@ -8,7 +8,7 @@ import './vista-portafoglio.js';
 import './vista-account.js';
 
 const TESTI = {
-  dati: ['Dati', "Carica l'elenco delle obbligazioni scaricato da Simple Tools for Investors"],
+  dati: ['Dati', "Carica l'elenco delle obbligazioni"],
   selezione: ['Selezione', 'Filtra le obbligazioni e aggiungile al portafoglio'],
   bozza: ['Bozza', 'Simula il portafoglio: modifica i nominali e guarda subito rendimento, duration, cedole e diversificazione'],
   costruito: ['Portafoglio costruito', 'I tuoi acquisti confermati e la loro analisi']

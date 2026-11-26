@@ -1,4 +1,4 @@
-// Lettura del file CSV scaricato da Simple Tools for Investors.
+// Lettura del file CSV con l'elenco delle obbligazioni.
 // Formato: separatore ";", decimali con la virgola, date gg/mm/aaaa.
 
 const COLONNE_OBBLIGATORIE = [

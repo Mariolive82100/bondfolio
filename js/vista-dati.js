@@ -38,7 +38,6 @@ function disegna() {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
       </div>
       <div class="dropzone-titolo">Trascina qui il file CSV</div>
-      <div class="dropzone-testo">Il file dei prezzi (End of Day) scaricato dalla sezione «Data export» di Simple Tools for Investors. Viene letto direttamente nel browser e non viene inviato da nessuna parte.</div>
       <button class="btn btn-secondario" id="btn-scegli">Scegli file</button>
       <input type="file" id="input-file" hidden>
     </div>`;
@@ -100,7 +99,7 @@ function disegna() {
   html += `
     <div class="card card-flex">
       <div class="card-titolo">Calendario incassi (facoltativo)</div>
-      <div class="testo-soft">Il file dei cashflow scaricato dalla sezione «Data export» di Simple Tools for Investors. Con questo file l'analisi del portafoglio mostra date e importi reali di cedole, tasse e rimborsi. Il file resta nel tuo browser; se hai fatto l'accesso, online vengono salvate solo le voci dei titoli in bozza e nel Costruito.</div>
+      <div class="testo-soft">Con il file dei cashflow l'analisi del portafoglio mostra date e importi reali di cedole, tasse e rimborsi. Il file resta nel tuo browser; se hai fatto l'accesso, online vengono salvate solo le voci dei titoli in bozza e nel Costruito.</div>
       ${corpoCashflow}
       <input type="file" id="input-cashflow" accept=".csv,text/csv" hidden>
       ${messaggioCashflow ? `<div class="messaggio messaggio-${messaggioCashflow.tipo}">${esc(messaggioCashflow.testo)}</div>` : ''}
