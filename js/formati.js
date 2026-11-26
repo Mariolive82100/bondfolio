@@ -40,6 +40,14 @@ export function leggiNumero(testo) {
   return Number.isNaN(n) || n < 0 ? null : n;
 }
 
+// Nominale in euro interi: "10000", "10.000" o "10.000,00" -> 10000; tutto il resto (anche "1.5" o zero) -> null
+export function leggiNominale(testo) {
+  const t = String(testo).trim().replace(/\s/g, '').replace(/,0*$/, '');
+  if (!/^(\d+|\d{1,3}(\.\d{3})+)$/.test(t)) return null;
+  const n = Number(t.replace(/\./g, ''));
+  return n > 0 ? n : null;
+}
+
 // Data di oggi nel formato "aaaa-mm-gg" (ora locale)
 export function oggiIso() {
   const d = new Date();

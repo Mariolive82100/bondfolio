@@ -4,13 +4,13 @@
 // e, se si vuole, le commissioni pagate. Il disegno della schermata è in vista-portafoglio.js, che usa le funzioni qui sotto.
 
 import { stato, impostaBozza, impostaCostruito, correggiCostruito } from './state.js';
-import { risolviPosizioni, calcolaTotali, calcolaIndicatori, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
+import { risolviPosizioni, calcolaTotali, calcolaIndicatori, lottoMinimo, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
 import { sommaPerIsin, riepilogoAcquisti, impattoAggiunta } from './costruito-calcoli.js';
 import { dataCalcolo, scadutoOggi } from './data-calcolo.js';
 import { rendimentoAcquistoPortafoglio } from './rendimento.js';
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { etichettaDaOrdinale } from './rating.js';
-import { esc, fmtNum, leggiNumero, oggiIso } from './formati.js';
+import { esc, fmtNum, leggiNumero, leggiNominale, oggiIso } from './formati.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
 
@@ -144,11 +144,11 @@ function rigaLotto(l, perIsin) {
   return `<div class="riga" data-id="${esc(l.id)}">
     <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
     <div data-eti="Data acquisto"><input class="input-conferma mod-data" type="date" value="${esc(l.data || '')}" aria-label="Data di acquisto"></div>
-    <div class="num" data-eti="Nominale">${fmtNum(l.nominale, 0)}</div>
+    <div class="num" data-eti="Nominale"><input class="input-conferma mod-nominale" type="text" inputmode="numeric" value="${fmtNum(l.nominale, 0)}" aria-label="Nominale"></div>
     <div class="num" data-eti="Prezzo di carico"><input class="input-conferma mod-carico" type="text" inputmode="decimal" value="${fmtNum(l.prezzoCarico, 3)}" aria-label="Prezzo medio di carico"></div>
     <div class="num" data-eti="Prezzo oggi">${fmtNum(t.prezzo)}</div>
     <div class="num ${classe}" data-eti="Var. %" data-var>${variazione === null ? '—' : segno(variazione) + fmtNum(Math.abs(variazione)) + '%'}</div>
-    <div class="num" data-eti="Valore oggi">${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
+    <div class="num" data-eti="Valore oggi" data-valore-oggi>${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
     <div class="num" data-eti="Commissioni (€)"><input class="input-conferma mod-comm" type="text" inputmode="decimal" value="${fmtNum(l.commissioni || 0)}" aria-label="Commissioni in euro"></div>
     ${bottone}</div>`;
 }
@@ -182,7 +182,7 @@ export function htmlCostruito() {
         </div>
         ${stato.costruito.map(l => rigaLotto(l, perIsin)).join('')}
       </div></div>
-      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Puoi correggere data, prezzo medio di carico (quello del broker, commissioni comprese) e commissioni scrivendo nelle caselle: la modifica si salva quando esci dalla casella. Per cambiare il nominale togli l'acquisto con la ✕ e rifallo dalla bozza. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. La variazione riguarda solo i prezzi (rispetto al prezzo medio di carico) e non comprende rateo né tasse sulla plusvalenza.</div>
+      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Puoi correggere data, nominale, prezzo medio di carico (quello del broker, commissioni comprese) e commissioni scrivendo nelle caselle: la modifica si salva quando esci dalla casella o premi Invio. Cambiando il nominale, prezzo di carico e commissioni restano quelli scritti: se serve, correggi anche quelli. Per togliere del tutto un acquisto usa la ✕. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. La variazione riguarda solo i prezzi (rispetto al prezzo medio di carico) e non comprende rateo né tasse sulla plusvalenza.</div>
     </section>
 
     ${htmlPannelloAnalisi()}`;
@@ -312,6 +312,10 @@ radice.addEventListener('input', e => {
 
 /* ---------- Correzione degli acquisti già confermati ---------- */
 
+radice.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('.tabella-costruito .input-conferma')) e.target.blur();
+});
+
 // La modifica si applica quando esci dalla casella: così il cursore non salta mentre scrivi
 radice.addEventListener('change', e => {
   const campo = e.target;
@@ -323,15 +327,24 @@ radice.addEventListener('change', e => {
   const carico = leggiNumero(riga.querySelector('.mod-carico').value);
   const comm = leggiNumero(riga.querySelector('.mod-comm').value);
   const data = riga.querySelector('.mod-data').value;
-  if (!(carico > 0) || comm === null || !dataOk(data)) {
-    alert('Valore non valido: il prezzo di carico deve essere maggiore di zero, le commissioni zero o più, la data completa. Rimetto il valore di prima.');
+  const nominale = leggiNominale(riga.querySelector('.mod-nominale').value);
+  if (nominale === null || !(carico > 0) || comm === null || !dataOk(data)) {
+    alert('Valore non valido: il nominale deve essere un numero intero maggiore di zero, il prezzo di carico maggiore di zero, le commissioni zero o più, la data completa. Rimetto il valore di prima.');
     ridisegna('costruito');
     return;
   }
-  const nuovo = { ...lotto, prezzoCarico: carico, commissioni: comm, data: data };
+  const t = stato.titoli.find(x => x.isin === lotto.isin);
+  // Un nominale fuori dal taglio minimo è quasi sempre un errore di battitura: si chiede conferma
+  if (nominale !== lotto.nominale && nominale % lottoMinimo(t) !== 0 &&
+      !confirm(fmtNum(nominale, 0) + ' € non è un multiplo del taglio minimo del titolo (' + fmtNum(lottoMinimo(t), 0) + ' €). Salvarlo comunque?')) {
+    ridisegna('costruito');
+    return;
+  }
+  const nuovo = { ...lotto, nominale: nominale, prezzoCarico: carico, commissioni: comm, data: data };
   correggiCostruito(stato.costruito.map(l => (l.id === lotto.id ? nuovo : l)));
 
-  const t = stato.titoli.find(x => x.isin === lotto.isin);
+  riga.querySelector('.mod-nominale').value = fmtNum(nominale, 0);
+  if (t) riga.querySelector('[data-valore-oggi]').textContent = fmtNum(nominale * t.prezzo / 100, 0);
   const v = t ? (t.prezzo - carico) / carico * 100 : null;
   const el = riga.querySelector('[data-var]');
   el.textContent = v === null ? '—' : segno(v) + fmtNum(Math.abs(v)) + '%';

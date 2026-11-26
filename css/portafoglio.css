@@ -64,8 +64,13 @@
 .conferma-totali > div { display: flex; flex-direction: column; gap: 2px; }
 .conferma-totali strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 
-.tabella-costruito { min-width: 1000px; }
-.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(200px, 2fr) 150px 90px 120px 90px 80px 90px 120px 44px; }
+.tabella-costruito { min-width: 900px; }
+.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(150px, 2fr) 140px 86px 96px 62px 68px 82px 84px 36px; }
+/* solo PC: spazi ridotti, così la tabella entra tutta anche a 1280px (sul telefono diventa a schede) */
+@media (min-width: 821px) {
+  .tabella-costruito .riga, .tabella-costruito .riga-testa { column-gap: 8px; padding-left: 14px; padding-right: 14px; }
+  .tabella-costruito .input-conferma { padding-left: 8px; padding-right: 8px; }
+}
 .tabella-costruito .riga-esclusa .esclusa-motivo { grid-column: 2 / 9; }
 .pos { color: #0B6E5A; }
 .neg { color: #B42318; }
