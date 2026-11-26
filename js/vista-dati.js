@@ -1,10 +1,11 @@
 // Schermata 1: caricamento del file con l'elenco delle obbligazioni
 
-import { stato, impostaDati, impostaBozza, impostaCostruito } from './state.js';
+import { stato, impostaDati } from './state.js';
+import { leggiElenco, nomePortafoglio, tuttiGliIsin } from './portafogli.js';
 import { leggiCsv } from './csv-loader.js';
 import { salva, carica, elimina } from './archivio.js';
 import { leggiCashflow, impostaCashflow, rimuoviCashflow, fileCashflow, isinOnline } from './cashflow-dati.js';
-import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, haPortafogli } from './esporta-importa.js';
+import { creaEsportazione, nomeFileEsportazione, scaricaTesto, leggiImportazione, applicaImportazione, haPortafogli } from './esporta-importa.js';
 
 const radice = document.getElementById('view-dati');
 let messaggio = null; // { tipo: 'errore' | 'avviso', testo: '...' }
@@ -76,7 +77,7 @@ function disegna() {
   let corpoCashflow;
   if (cf) {
     const giorniVecchio = Math.round((Date.now() - new Date(cf.dataAcquisto + 'T00:00:00')) / 86400000);
-    const inPortafoglio = new Set(stato.bozza.concat(stato.costruito).map(x => x.isin));
+    const inPortafoglio = new Set(tuttiGliIsin());
     const soloOnline = salvati.filter(isin => inPortafoglio.has(isin) && !cf.perIsin.has(isin)).length;
     corpoCashflow = `
       <div>${esc(cf.nomeFile)}</div>
@@ -107,7 +108,7 @@ function disegna() {
 
     <div class="card card-flex scheda-portafogli">
       <div class="card-titolo">Portafogli: esporta e importa</div>
-      <div class="testo-soft">Per portare la bozza e il portafoglio costruito su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: va caricato a mano.</div>
+      <div class="testo-soft">Per salvare una copia o portare tutti i portafogli (bozza e costruito) su un altro computer: esporta il file qui, aprilo su quel computer con «Importa portafogli». Il file dei titoli (CSV) non è incluso: va caricato a mano.</div>
       <div class="gruppo-bottoni">
         <button class="btn btn-primario" id="btn-esporta">Esporta portafogli</button>
         <button class="btn btn-secondario" id="btn-importa">Importa portafogli</button>
@@ -182,14 +183,25 @@ function collega() {
 async function importaFile(file) {
   try {
     const r = leggiImportazione(await file.text());
-    if (haPortafogli() && !confirm('L\'importazione sostituisce la bozza (' + stato.bozza.length + ' titoli) e il portafoglio costruito (' +
-      stato.costruito.length + ' acquisti) che hai ora in questo browser. Continuare?')) return;
-    impostaBozza(r.bozza);
-    impostaCostruito(r.costruito);
+    const quanti = (n, uno, molti) => n + ' ' + (n === 1 ? uno : molti);
+    const descrivi = p => quanti(p.bozza.length, 'titolo', 'titoli') + ' in bozza e ' + quanti(p.costruito.length, 'acquisto', 'acquisti') + ' nel Costruito';
+    let domanda, esito;
+    if (r.formato === 1) {
+      const destinazione = '«' + nomePortafoglio(stato.portafoglio) + '»';
+      domanda = 'Il file contiene un solo portafoglio (' + descrivi(r.portafogli[0]) + '). Sostituirà ' + destinazione + ', quello selezionato ora (' + descrivi(stato) + '). Continuare?';
+      esito = 'Importato in ' + destinazione + ': ' + descrivi(r.portafogli[0]) + '.';
+    } else {
+      const esistenti = leggiElenco().elenco;
+      const sostituiti = r.portafogli.filter(p => esistenti.some(x => x.id === p.id)).map(p => '«' + nomePortafoglio(p.id) + '»');
+      domanda = 'Il file contiene ' + quanti(r.portafogli.length, 'portafoglio', 'portafogli') + '. ' +
+        (sostituiti.length > 0 ? 'Verranno SOSTITUITI: ' + sostituiti.join(', ') + '. ' : '') + 'Quelli nuovi vengono aggiunti, gli altri restano come sono. Continuare?';
+      esito = 'Importati ' + quanti(r.portafogli.length, 'portafoglio', 'portafogli') + '.';
+    }
+    if ((r.formato === 2 || haPortafogli() || stato.bozza.length > 0 || stato.costruito.length > 0) && !confirm(domanda)) return;
+    applicaImportazione(r);
     messaggioPortafogli = {
       tipo: r.scartati > 0 ? 'avviso' : 'ok',
-      testo: 'Importati ' + r.bozza.length + (r.bozza.length === 1 ? ' titolo' : ' titoli') + ' in bozza e ' + r.costruito.length + (r.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' nel portafoglio costruito.' +
-        (r.scartati > 0 ? ' Voci scartate perché non valide: ' + r.scartati + '.' : '')
+      testo: esito + (r.scartati > 0 ? ' Voci scartate perché non valide: ' + r.scartati + '.' : '')
     };
   } catch (errore) {
     messaggioPortafogli = { tipo: 'errore', testo: errore.message };

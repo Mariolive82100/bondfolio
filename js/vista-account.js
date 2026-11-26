@@ -1,6 +1,7 @@
 // Riquadro in alto a destra (accesso e stato del salvataggio online)
 // e riquadro per scegliere quando i dati del browser e quelli online sono diversi.
 
+import { PRINCIPALE, nomePortafoglio } from './portafogli.js';
 import { avviaAccesso, accedi, esci, messaggioErrore } from './auth.js';
 import { ascoltaSincronizzazione, impostaUtente, allinea, salvaSubito } from './sincronizzazione.js';
 import { esc } from './formati.js';
@@ -59,7 +60,7 @@ function disegnaScelta() {
   const conta = d => `${d.bozza} ${d.bozza === 1 ? 'titolo' : 'titoli'} in bozza · ${d.costruito} ${d.costruito === 1 ? 'acquisto' : 'acquisti'} nel Costruito`;
   const quando = c.online.aggiornato ? ' · modificati il ' + new Date(c.online.aggiornato).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
   riquadro.innerHTML = `
-    <strong>I dati di questo browser e quelli online sono diversi. Quali vuoi tenere?</strong>
+    <strong>Portafoglio «${esc(nomePortafoglio(PRINCIPALE))}»: i dati di questo browser e quelli online sono diversi. Quali vuoi tenere?</strong>
     <div>Questo browser: ${conta(c.locale)}</div>
     <div>Online: ${conta(c.online)}${quando}</div>
     <div class="scelta-nota">I dati diversi che non scegli vengono sostituiti. Se hai un dubbio, prima salvane una copia con «Esporta portafogli» nella schermata Dati.</div>

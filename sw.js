@@ -20,6 +20,7 @@ const FILE_APP = [
   'css/layout.css',
   'css/mobile.css',
   'css/portafoglio.css',
+  'css/portafogli.css',
   'css/selezione.css',
   'js/analisi-pannello.js',
   'js/app.js',
@@ -40,6 +41,7 @@ const FILE_APP = [
   'js/formati.js',
   'js/grafici.js',
   'js/portafoglio-calcoli.js',
+  'js/portafogli.js',
   'js/pwa.js',
   'js/rating.js',
   'js/rendimento.js',
@@ -49,6 +51,7 @@ const FILE_APP = [
   'js/vista-account.js',
   'js/vista-costruito.js',
   'js/vista-dati.js',
+  'js/vista-portafogli.js',
   'js/vista-portafoglio.js',
   'js/vista-selezione.js'
 ];

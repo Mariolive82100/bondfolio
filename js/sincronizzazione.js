@@ -3,15 +3,18 @@
 // - è cambiato solo il browser  -> salva online
 // - è cambiato solo l'online    -> aggiorna il browser
 // - sono cambiati entrambi (o è il primo accesso e sono diversi) -> chiede quale tenere
+// Per ora si sincronizza solo il portafoglio "Principale"; il cashflow copre i titoli di tutti i portafogli.
 
-import { stato, impostaBozza, impostaCostruito } from './state.js';
+import { listaDi, impostaListaDi } from './state.js';
+import { PRINCIPALE, tuttiGliIsin } from './portafogli.js';
 import { NOMI, impronta, leggiOnline, scriviOnline } from './cloud-portafogli.js';
 import { allineaCashflow } from './cloud-cashflow.js';
 
 const CHIAVE = 'bondfolio_sync_v1';
 const ATTESA = 3000; // millisecondi dopo l'ultima modifica prima di salvare
 
-const APPLICA = { bozza: impostaBozza, costruito: impostaCostruito };
+const localeDi = nome => listaDi(PRINCIPALE, nome);
+const applica = (nome, lista) => impostaListaDi(PRINCIPALE, nome, lista);
 
 let uid = null;
 let sessione = 0;        // cambia a ogni accesso o uscita: ferma le operazioni iniziate prima
@@ -35,7 +38,7 @@ function salvaBase(base) {
 
 function haModifiche() {
   const base = leggiBase();
-  return !base || base.uid !== uid || NOMI.some(n => impronta(n, stato[n]) !== base[n]);
+  return !base || base.uid !== uid || NOMI.some(n => impronta(n, localeDi(n)) !== base[n]);
 }
 
 // Chiamata quando si entra (con l'identificativo dell'utente) o si esce (null)
@@ -89,7 +92,7 @@ async function esegui(mia, scelta) {
 
   // Per ogni elenco decide cosa fare: 'uguale', 'carica' (browser -> online), 'scarica', 'scegli'
   const piano = NOMI.map(nome => {
-    const locale = impronta(nome, stato[nome]);
+    const locale = impronta(nome, localeDi(nome));
     const remoto = online[nome] ? impronta(nome, online[nome].lista) : null;
     const prima = base[nome];
     let azione;
@@ -107,7 +110,7 @@ async function esegui(mia, scelta) {
   if (piano.some(p => p.azione === 'scegli')) {
     if (!scelta) {
       conflitto = {
-        locale: { bozza: stato.bozza.length, costruito: stato.costruito.length },
+        locale: { bozza: localeDi('bozza').length, costruito: localeDi('costruito').length },
         online: {
           bozza: online.bozza ? online.bozza.lista.length : 0,
           costruito: online.costruito ? online.costruito.lista.length : 0,
@@ -128,10 +131,10 @@ async function esegui(mia, scelta) {
     if (p.azione === 'uguale') base[p.nome] = p.locale;
     if (p.azione === 'scarica') base[p.nome] = p.remoto === null ? '[]' : p.remoto;
   });
-  const daSalvare = piano.filter(p => p.azione === 'carica').map(p => ({ ...p, lista: stato[p.nome].slice() }));
+  const daSalvare = piano.filter(p => p.azione === 'carica').map(p => ({ ...p, lista: localeDi(p.nome).slice() }));
   salvaBase(base);
   piano.forEach(p => {
-    if (p.azione === 'scarica') APPLICA[p.nome](p.remoto === null ? [] : online[p.nome].lista);
+    if (p.azione === 'scarica') applica(p.nome, p.remoto === null ? [] : online[p.nome].lista);
   });
 
   for (const p of daSalvare) {
@@ -143,7 +146,7 @@ async function esegui(mia, scelta) {
   }
 
   // Con i portafogli allineati, aggiorna il cashflow dei loro titoli
-  await allineaCashflow(utente, stato.bozza.concat(stato.costruito).map(x => x.isin));
+  await allineaCashflow(utente, tuttiGliIsin());
   if (mia !== sessione) return;
 
   comunica({ tipo: 'salvato', ora: new Date() });

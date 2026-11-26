@@ -6,6 +6,7 @@ import './vista-dati.js';
 import './vista-selezione.js';
 import './vista-portafoglio.js';
 import './vista-account.js';
+import './vista-portafogli.js';
 
 const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni"],
@@ -29,6 +30,8 @@ function mostra(nome) {
   const area = diPortafoglio ? 'portafoglio' : nome;
   viste.forEach(v => { v.hidden = (v.id !== 'view-' + area); });
   if (diPortafoglio) document.dispatchEvent(new CustomEvent('mostra-portafoglio', { detail: nome }));
+  // La scelta del portafoglio serve ovunque tranne che nella schermata Dati
+  document.getElementById('barra-portafogli').hidden = nome === 'dati';
   titolo.textContent = TESTI[nome][0];
   sottotitolo.textContent = TESTI[nome][1];
 }

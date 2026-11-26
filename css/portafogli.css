@@ -1,0 +1,25 @@
+/* ---------- Barra dei portafogli ---------- */
+.barra-portafogli {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px;
+  padding: 12px 20px; margin-bottom: 20px;
+}
+.barra-portafogli[hidden] { display: none; }
+.pf-scelta { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; font-size: 13px; font-weight: 600; }
+.pf-scelta select {
+  height: 36px; min-width: 220px; max-width: 420px; padding: 0 10px; text-overflow: ellipsis;
+  border: 1px solid #8A94A3; border-radius: 8px;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: var(--testo); background: #fff;
+}
+.pf-bottoni { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-bottoni .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pf-nota { margin-left: auto; font-size: 12px; color: var(--testo-soft); }
+.pf-nota-locale { padding: 4px 10px; border-radius: 8px; background: #FEF3C7; color: #92400E; font-weight: 500; }
+
+@media (max-width: 820px) {
+  .barra-portafogli { padding: 10px 12px; margin-bottom: 12px; gap: 8px; }
+  .pf-scelta { flex: 1 0 100%; }
+  .pf-scelta select { flex: 1; width: 0; min-width: 0; height: 42px; }
+  .pf-bottoni { flex: 1 0 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .pf-bottoni .btn { padding: 6px 2px; font-size: 12px; }
+  .pf-nota { margin-left: 0; }
+}

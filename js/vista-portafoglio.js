@@ -244,6 +244,8 @@ document.addEventListener('mostra-portafoglio', e => {
   if (modo === 'costruito') annullaConferma();
   disegna();
 });
+// Cambiando portafoglio si abbandona la conferma d'acquisto lasciata a metà
+document.addEventListener('portafoglio-cambiato', annullaConferma);
 document.addEventListener('bozza-aggiornata', () => { if (!aggiornandoDaQui) disegna(); });
 
 disegna();
