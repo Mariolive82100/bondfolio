@@ -12,6 +12,7 @@ const PASSO = 100; // righe mostrate alla volta
 let filtri = nuoviFiltri();
 let ordine = { campo: 'rendNetto', verso: -1 };
 let visibili = PASSO;
+let filtriAperti = false; // conta solo sul telefono, dove i filtri partono chiusi
 
 const COLONNE = [
   { campo: 'nome', titolo: 'Titolo', verso: 1 },
@@ -49,10 +50,12 @@ function disegna() {
   radice.innerHTML = `
     <div class="selezione">
 
-      <section class="card pannello-filtri">
+      <section class="card pannello-filtri${filtriAperti ? ' aperti' : ''}">
         <div class="filtri-testa">
           <div class="card-titolo">Filtri</div>
           <button class="link-btn" data-azione="azzera">Azzera</button>
+          <button type="button" class="btn btn-secondario btn-piccolo btn-filtri" data-azione="filtri"
+            aria-expanded="${filtriAperti}">${filtriAperti ? 'Nascondi filtri' : 'Mostra filtri'}</button>
         </div>
 
         <label class="campo"><span>Cerca</span>
@@ -286,6 +289,12 @@ radice.addEventListener('click', e => {
       if (stato.bozza.length > 0 && confirm('Togliere tutti i ' + stato.bozza.length + ' titoli dal portafoglio?')) {
         impostaBozza([]);
       }
+      break;
+    case 'filtri':
+      filtriAperti = !filtriAperti;
+      el.closest('.pannello-filtri').classList.toggle('aperti', filtriAperti);
+      el.textContent = filtriAperti ? 'Nascondi filtri' : 'Mostra filtri';
+      el.setAttribute('aria-expanded', String(filtriAperti));
       break;
     case 'azzera':
       filtri = nuoviFiltri();

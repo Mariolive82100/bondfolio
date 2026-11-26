@@ -18,6 +18,7 @@ const FILE_APP = [
   'css/componenti.css',
   'css/grafici.css',
   'css/layout.css',
+  'css/mobile.css',
   'css/portafoglio.css',
   'css/selezione.css',
   'js/analisi-pannello.js',
