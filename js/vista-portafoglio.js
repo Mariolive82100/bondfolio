@@ -157,11 +157,12 @@ function aggiornaNumeri() {
 
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('riassunto-bozza', tot.numero + (tot.numero === 1 ? ' titolo' : ' titoli') + ' · nominale ' + fmtNum(tot.nominale, 0) + ' €');
-  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo());
-  aggiornaImpatto();
   // In bozza si comprerebbe ai prezzi del file
-  aggiornaCapitalGain(['scadenza'], posizioni.filter(p => p.valida)
-    .map(p => ({ isin: p.isin, nominale: p.nominale, prezzoCarico: p.titolo.prezzo })), stato.titoli);
+  const acquisti = posizioni.filter(p => p.valida)
+    .map(p => ({ isin: p.isin, nominale: p.nominale, prezzoCarico: p.titolo.prezzo }));
+  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo(), acquisti);
+  aggiornaImpatto();
+  aggiornaCapitalGain(['scadenza'], acquisti, stato.titoli);
 
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'

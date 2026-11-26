@@ -11,7 +11,8 @@ import { scadutoOggi } from './data-calcolo.js';
 import { fmtNum } from './formati.js';
 
 // acquisti = [{ isin, nominale, prezzoCarico }]; prezzoFinale(titolo) = prezzo di uscita per 100 di nominale
-export function capitalGain(acquisti, titoli, prezzoFinale) {
+// Restituisce isin -> { differenza, tasse, netto } (se differenza è negativa è una minusvalenza: niente tasse)
+export function capitalGainPerTitolo(acquisti, titoli, prezzoFinale) {
   const perIsin = new Map(titoli.map(t => [t.isin, t]));
   const somme = new Map(); // isin -> { t, nominale, costo }
   acquisti.forEach(a => {
@@ -22,17 +23,28 @@ export function capitalGain(acquisti, titoli, prezzoFinale) {
     s.costo += a.nominale * a.prezzoCarico / 100;
     somme.set(a.isin, s);
   });
-  const r = { titoli: 0, guadagni: 0, tasse: 0, netto: 0, minus: 0, titoliInPerdita: 0 };
-  somme.forEach(s => {
+  const risultato = new Map();
+  somme.forEach((s, isin) => {
     const prezzo = prezzoFinale(s.t);
     if (!(prezzo > 0)) return;
+    let differenza = s.nominale * prezzo / 100 - s.costo;
+    if (Math.abs(differenza) <= 0.005) differenza = 0;
+    const tasse = differenza > 0 ? differenza * aliquota(s.t) / 100 : 0;
+    risultato.set(isin, { differenza: differenza, tasse: tasse, netto: differenza - tasse });
+  });
+  return risultato;
+}
+
+// Totali del portafoglio
+export function capitalGain(acquisti, titoli, prezzoFinale) {
+  const r = { titoli: 0, guadagni: 0, tasse: 0, netto: 0, minus: 0, titoliInPerdita: 0 };
+  capitalGainPerTitolo(acquisti, titoli, prezzoFinale).forEach(v => {
     r.titoli += 1;
-    const differenza = s.nominale * prezzo / 100 - s.costo;
-    if (differenza > 0.005) {
-      r.guadagni += differenza;
-      r.tasse += differenza * aliquota(s.t) / 100;
-    } else if (differenza < -0.005) {
-      r.minus += -differenza;
+    if (v.differenza > 0) {
+      r.guadagni += v.differenza;
+      r.tasse += v.tasse;
+    } else if (v.differenza < 0) {
+      r.minus += -v.differenza;
       r.titoliInPerdita += 1;
     }
   });

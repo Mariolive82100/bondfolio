@@ -186,7 +186,7 @@ export function htmlCostruito() {
 export function aggiornaCostruito() {
   const posizioni = risolviPosizioni(sommaPerIsin(stato.costruito), stato.titoli);
   const tot = calcolaTotali(posizioni);
-  aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento());
+  aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento(), stato.costruito);
   aggiornaCapitalGain(['scadenza', 'oggi'], stato.costruito, stato.titoli);
 
   const r = riepilogoAcquisti(stato.costruito, stato.titoli);

@@ -129,6 +129,9 @@
   .tabella-calendario .cal-netto { order: 2; margin-left: auto; font-size: 14px; }
   .tabella-calendario .cal-titolo { order: 3; flex: 1 0 100%; }
   .tabella-calendario .cal-evento, .tabella-calendario .cal-lordo, .tabella-calendario .cal-tasse { order: 4; color: var(--testo-soft); }
+  .tabella-calendario .cal-gain { order: 5; flex: 1 0 100%; }
+  .tabella-calendario .cal-gain::before { content: 'Capital gain netto '; color: var(--testo-soft); }
+  .tabella-calendario .cal-gain-vuoto { display: none; }
   .tabella-calendario .cal-lordo::before, .tabella-calendario .cal-tasse::before { content: attr(data-eti) ' '; }
   .tabella-calendario .cal-netto::before { content: attr(data-eti) ' '; font-weight: 400; font-size: 11px; color: var(--testo-soft); }
 

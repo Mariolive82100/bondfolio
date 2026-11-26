@@ -5,13 +5,15 @@ import { graficoBarre, graficoBarreImpilate, graficoTorta, graficoVuoto } from '
 import { etichettaDaOrdinale } from './rating.js';
 import { fmtNum, fmtData, esc, NOMI_MESI } from './formati.js';
 import { cashflowAttuale } from './cashflow-dati.js';
+import { capitalGainPerTitolo } from './capital-gain.js';
+import { stato } from './state.js';
 import { costruisciCalendario, prossimiDodiciMesi, unisciAnni, aggiungiStimaMensile } from './cashflow-calcoli.js';
 
 // Se c'è il calendario reale (file cashflow o voci salvate online), i grafici lo usano e per i soli titoli
 // senza dati reali aggiungono la stima, segnalandolo. Senza calendario reale è tutto stimato. Quando il file cambia, il pannello si ridisegna da solo.
-let ultimaChiamata = null; // { posizioni, dataRif }
+let ultimaChiamata = null; // { posizioni, dataRif, acquisti }
 document.addEventListener('cashflow-aggiornato', () => {
-  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif);
+  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif, ultimaChiamata.acquisti);
 });
 
 // Calendario reale per il portafoglio, oppure null (file non caricato o nessun titolo coperto).
@@ -97,7 +99,8 @@ export function htmlPannelloAnalisi() {
 }
 
 // Riempie riepilogo e grafici. dataRif = data di riferimento del file ("aaaa-mm-gg")
-export function aggiornaPannelloAnalisi(posizioni, tot, dataRif) {
+// acquisti = [{ isin, nominale, prezzoCarico }]: da questi prezzi si calcola il capital gain del calendario
+export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, acquisti = []) {
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
   set('t-numero', String(tot.numero));
@@ -113,12 +116,12 @@ export function aggiornaPannelloAnalisi(posizioni, tot, dataRif) {
   set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
   set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
     ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
-  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif };
-  aggiornaGrafici(posizioni, dataRif);
+  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif, acquisti: acquisti };
+  aggiornaGrafici(posizioni, dataRif, acquisti);
 }
 
 // Ridisegna i grafici (a ogni modifica dei nominali)
-function aggiornaGrafici(posizioni, dataRif) {
+function aggiornaGrafici(posizioni, dataRif, acquisti) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
   const cal = calendarioReale(posizioni, dataRif);
@@ -192,40 +195,54 @@ function aggiornaGrafici(posizioni, dataRif) {
   // Tabella del calendario
   const notaTabella = stimati.length === 0 ? ''
     : '<div class="messaggio messaggio-avviso">In questa tabella ci sono solo i dati reali: ' + (stimati.length === 1 ? 'manca ' : 'mancano ') + nomiStimati + '. La stima è inclusa nei grafici, quindi il totale qui sotto può essere più basso.</div>';
-  metti('g-calendario', esatto ? notaTabella + htmlCalendario(cal)
+  metti('g-calendario', esatto ? notaTabella + htmlCalendario(cal, capitalGainPerTitolo(acquisti, stato.titoli, () => 100))
     : graficoVuoto(posizioni.some(p => p.valida)
       ? 'Per vedere date e importi reali carica il file dei cashflow nella schermata Dati (i grafici usano una stima).'
       : 'Nessun titolo nel portafoglio'));
 }
 
-// Tabella degli incassi: una riga per data e titolo (cedola e tassa sulla cedola sommate)
-function htmlCalendario(cal) {
+// Tabella degli incassi: una riga per data e titolo (cedola e tassa sulla cedola sommate).
+// guadagni = capital gain a scadenza per titolo (vedi capital-gain.js): compare solo sulle righe di rimborso.
+function htmlCalendario(cal, guadagni) {
   const mappa = new Map();
   cal.righe.forEach(r => {
     const k = r.data + '|' + r.isin;
-    const v = mappa.get(k) || { data: r.data, nome: r.nome, lordo: 0, tasse: 0, netto: 0, cedola: false, rimborso: false };
+    const v = mappa.get(k) || { data: r.data, isin: r.isin, nome: r.nome, lordo: 0, tasse: 0, netto: 0, capitale: 0, cedola: false, rimborso: false };
     if (r.tipo === 'tassa') v.tasse += r.importo; else v.lordo += r.importo;
     if (r.tipo === 'cedola') v.cedola = true;
-    if (r.tipo === 'rimborso') v.rimborso = true;
+    if (r.tipo === 'rimborso') { v.rimborso = true; v.capitale += r.importo; }
     v.netto += r.importo;
     mappa.set(k, v);
   });
   const cella = 'padding:6px 10px;border-bottom:1px solid #EEF0F3;white-space:nowrap;font-variant-numeric:tabular-nums;';
   const testa = 'padding:8px 10px;position:sticky;top:0;background:#fff;text-align:left;font-weight:600;border-bottom:1px solid #D9DEE4;';
-  let totale = 0;
+  // Se un titolo è rimborsato in più volte, il suo capital gain si divide in proporzione agli importi rimborsati
+  const rimborsato = new Map();
+  mappa.forEach(v => rimborsato.set(v.isin, (rimborsato.get(v.isin) || 0) + v.capitale));
+  let totale = 0, totaleGain = 0, totaleMinus = 0;
   const righe = Array.from(mappa.values()).map(v => {
     totale += v.netto;
+    const g = v.rimborso && rimborsato.get(v.isin) > 0 ? guadagni.get(v.isin) : undefined;
+    let testoGain = '—';
+    if (g) {
+      const importo = g.netto * v.capitale / rimborsato.get(v.isin);
+      if (importo < 0) { totaleMinus -= importo; testoGain = fmtNum(importo) + ' (minus)'; }
+      else { totaleGain += importo; testoGain = fmtNum(importo); }
+    }
     const evento = v.cedola && v.rimborso ? 'Cedola + rimborso' : v.cedola ? 'Cedola' : v.rimborso ? 'Rimborso' : 'Tasse';
     return '<tr><td class="cal-data" style="' + cella + '">' + fmtData(v.data) + '</td>'
       + '<td class="cal-titolo" style="' + cella + 'white-space:normal;">' + esc(v.nome) + '</td>'
       + '<td class="cal-evento" style="' + cella + '">' + evento + '</td>'
       + '<td class="cal-lordo" data-eti="Lordo" style="' + cella + 'text-align:right;">' + fmtNum(v.lordo) + '</td>'
       + '<td class="cal-tasse" data-eti="Tasse" style="' + cella + 'text-align:right;">' + fmtNum(v.tasse) + '</td>'
-      + '<td class="cal-netto" data-eti="Netto €" style="' + cella + 'text-align:right;font-weight:600;">' + fmtNum(v.netto) + '</td></tr>';
+      + '<td class="cal-netto" data-eti="Netto €" style="' + cella + 'text-align:right;font-weight:600;">' + fmtNum(v.netto) + '</td>'
+      + '<td class="cal-gain' + (g ? '' : ' cal-gain-vuoto') + '" data-eti="Capital gain netto €" style="' + cella + 'text-align:right;">' + testoGain + '</td></tr>';
   });
   return '<div style="max-height:420px;overflow:auto;"><table class="tabella-calendario" style="width:100%;border-collapse:collapse;font-size:12px;">'
     + '<thead><tr><th style="' + testa + '">Data</th><th style="' + testa + '">Titolo</th><th style="' + testa + '">Evento</th>'
-    + '<th style="' + testa + 'text-align:right;">Lordo €</th><th style="' + testa + 'text-align:right;">Tasse €</th><th style="' + testa + 'text-align:right;">Netto €</th></tr></thead>'
+    + '<th style="' + testa + 'text-align:right;">Lordo €</th><th style="' + testa + 'text-align:right;">Tasse €</th><th style="' + testa + 'text-align:right;">Netto €</th><th style="' + testa + 'text-align:right;">Capital gain netto €</th></tr></thead>'
     + '<tbody>' + righe.join('') + '</tbody></table></div>'
-    + '<div class="nota-grafico">' + mappa.size + ' incassi · totale netto ' + fmtNum(totale, 0) + ' € · importi del calendario reale, riproporzionati ai tuoi nominali</div>';
+    + '<div class="nota-grafico">' + mappa.size + ' incassi · totale netto ' + fmtNum(totale, 0) + ' € · importi del calendario reale, riproporzionati ai tuoi nominali'
+    + '<br>Capital gain netto in tabella: ' + fmtNum(totaleGain) + ' €' + (totaleMinus > 0 ? ' · minusvalenze a parte: ' + fmtNum(totaleMinus) + ' €' : '')
+    + '. È una stima calcolata come nel riquadro del capital gain: è solo un dettaglio del rimborso, non va sommato alla colonna Netto e può non coincidere con la colonna Tasse.</div>';
 }
