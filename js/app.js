@@ -1,6 +1,7 @@
 // Gestione della navigazione tra le 4 schermate
 
 import { VERSIONE } from './versione.js';
+import { avviaPwa } from './pwa.js';
 import './vista-dati.js';
 import './vista-selezione.js';
 import './vista-portafoglio.js';
@@ -19,6 +20,7 @@ const titolo = document.getElementById('titolo');
 const sottotitolo = document.getElementById('sottotitolo');
 
 document.getElementById('versione').textContent = 'v' + VERSIONE;
+avviaPwa();
 
 function mostra(nome) {
   voci.forEach(v => v.classList.toggle('is-active', v.dataset.view === nome));
