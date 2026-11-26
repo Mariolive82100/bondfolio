@@ -54,8 +54,11 @@ function riga(p) {
 
 function disegna() {
   const giorniVecchio = giorniFileVecchio();
+  const cosa = modo === 'bozza'
+    ? 'prezzi e rendimenti sono quelli di quel giorno. Flussi di cassa, scadenza media, durata e titoli scaduti sono invece aggiornati a oggi.'
+    : 'i dati del riquadro «Se guardi il mercato oggi» usano i prezzi di quel giorno, e il rating è quello del file. Incassi futuri, scadenza residua e titoli scaduti sono invece aggiornati a oggi.';
   const avvisoFile = giorniVecchio > 7
-    ? `<div class="messaggio messaggio-avviso">I prezzi del file sono del ${fmtData(dataFile())} (${giorniVecchio} giorni fa): prezzi e rendimenti sono quelli di quel giorno. Flussi di cassa, scadenza media, durata e titoli scaduti sono invece aggiornati a oggi. Per prezzi aggiornati carica un nuovo file nella schermata Dati.</div>`
+    ? `<div class="messaggio messaggio-avviso">I prezzi del file sono del ${fmtData(dataFile())} (${giorniVecchio} giorni fa): ${cosa} Per dati aggiornati carica un nuovo file nella schermata Dati.</div>`
     : '';
   if (modo === 'aggregato') {
     radice.innerHTML = `<div class="portafoglio">${avvisoFile}${htmlAggregato()}</div>`;

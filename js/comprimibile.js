@@ -17,14 +17,18 @@ function scrivi(id, chiusa) {
   } catch (e) { /* niente da fare */ }
 }
 
-export function staChiusa(id) { return !!leggi()[id]; }
+// predefinita = true: la sezione parte chiusa finché non la apri
+export function staChiusa(id, predefinita = false) {
+  const salvato = leggi()[id];
+  return salvato === undefined ? predefinita : !!salvato;
+}
 
 // Da aggiungere alla classe della scheda: " chiusa" se la sezione è compressa
-export function classeChiusa(id) { return staChiusa(id) ? ' chiusa' : ''; }
+export function classeChiusa(id, predefinita = false) { return staChiusa(id, predefinita) ? ' chiusa' : ''; }
 
 // Intestazione cliccabile: titolo, riassunto (visibile soprattutto quando è chiusa) e freccia
-export function testaComprimibile(id, titolo, idRiassunto, riassunto = '') {
-  return `<button type="button" class="sezione-testa" data-comprimi="${esc(id)}" aria-expanded="${!staChiusa(id)}">
+export function testaComprimibile(id, titolo, idRiassunto, riassunto = '', predefinita = false) {
+  return `<button type="button" class="sezione-testa" data-comprimi="${esc(id)}" aria-expanded="${!staChiusa(id, predefinita)}">
     <span class="card-titolo">${esc(titolo)}</span>
     <span class="testo-soft" id="${esc(idRiassunto)}">${esc(riassunto)}</span>
     <span class="freccia" aria-hidden="true">▾</span>

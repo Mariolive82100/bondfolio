@@ -5,12 +5,14 @@
 
 import { stato, impostaBozza, impostaCostruito, correggiCostruito } from './state.js';
 import { risolviPosizioni, calcolaTotali, calcolaIndicatori, lottoMinimo, VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
+import { cedolaNetta } from './filtri.js';
+import { htmlMercatoOggi, aggiornaMercatoOggi } from './mercato-oggi.js';
 import { sommaPerIsin, riepilogoAcquisti, impattoAggiunta } from './costruito-calcoli.js';
 import { dataCalcolo, scadutoOggi } from './data-calcolo.js';
 import { rendimentoAcquistoPortafoglio } from './rendimento.js';
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { etichettaDaOrdinale } from './rating.js';
-import { esc, fmtNum, leggiNumero, leggiNominale, oggiIso } from './formati.js';
+import { esc, fmtNum, fmtData, leggiNumero, leggiNominale, oggiIso } from './formati.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
 
@@ -139,28 +141,25 @@ function rigaLotto(l, perIsin) {
       ${bottone}</div>`;
   }
 
-  const variazione = l.prezzoCarico > 0 ? (t.prezzo - l.prezzoCarico) / l.prezzoCarico * 100 : null;
-  const classe = variazione === null ? '' : variazione >= 0 ? 'pos' : 'neg';
   return `<div class="riga" data-id="${esc(l.id)}">
     <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
+    <div data-eti="Scadenza">${fmtData(t.scadenza)}</div>
     <div data-eti="Data acquisto"><input class="input-conferma mod-data" type="date" value="${esc(l.data || '')}" aria-label="Data di acquisto"></div>
     <div class="num" data-eti="Nominale"><input class="input-conferma mod-nominale" type="text" inputmode="numeric" value="${fmtNum(l.nominale, 0)}" aria-label="Nominale"></div>
     <div class="num" data-eti="Prezzo di carico"><input class="input-conferma mod-carico" type="text" inputmode="decimal" value="${fmtNum(l.prezzoCarico, 3)}" aria-label="Prezzo medio di carico"></div>
-    <div class="num" data-eti="Prezzo oggi">${fmtNum(t.prezzo)}</div>
-    <div class="num ${classe}" data-eti="Var. %" data-var>${variazione === null ? '—' : segno(variazione) + fmtNum(Math.abs(variazione)) + '%'}</div>
-    <div class="num" data-eti="Valore oggi" data-valore-oggi>${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
     <div class="num" data-eti="Commissioni (€)"><input class="input-conferma mod-comm" type="text" inputmode="decimal" value="${fmtNum(l.commissioni || 0)}" aria-label="Commissioni in euro"></div>
+    <div class="num" data-eti="Capitale investito (€)" data-capitale>${fmtNum(l.nominale * l.prezzoCarico / 100, 0)}</div>
+    <div class="num" data-eti="Cedola annua netta (€)" data-cedola>${fmtNum(l.nominale * (cedolaNetta(t) || 0) / 100)}</div>
     ${bottone}</div>`;
 }
 
+// I numeri fissati al momento dell'acquisto
 export function htmlRiepilogoAcquisti() {
   return `
-    <div class="riepilogo riepilogo-acquisti">
+    <div class="riepilogo riepilogo-acquisti riepilogo-tre">
       <div class="card"><div class="testo-soft">Capitale investito (prezzo medio di carico)</div><div class="valore" id="r-investito"></div><div class="testo-soft" id="r-investito-nota"></div></div>
-      <div class="card"><div class="testo-soft">Valore oggi (prezzi del file)</div><div class="valore" id="r-valore"></div></div>
-      <div class="card"><div class="testo-soft">Variazione latente dei prezzi</div><div class="valore" id="r-var"></div></div>
-      <div class="card"><div class="testo-soft">Commissioni pagate</div><div class="valore" id="r-comm"></div><div class="testo-soft" id="r-comm-nota"></div></div>
       <div class="card"><div class="testo-soft">Rendimento netto all'acquisto (stima)</div><div class="valore" id="r-rend-comm"></div><div class="testo-soft" id="r-rend-comm-nota"></div></div>
+      <div class="card"><div class="testo-soft">Commissioni pagate</div><div class="valore" id="r-comm"></div><div class="testo-soft" id="r-comm-nota"></div></div>
     </div>`;
 }
 
@@ -171,30 +170,33 @@ export function htmlCostruito() {
 
     ${htmlRiepilogoAcquisti()}
 
-    ${htmlCapitalGain(['scadenza', 'oggi'], 'tuo prezzo medio di carico (i rimborsi netti nei grafici seguono invece il file cashflow, che non conosce quel prezzo)')}
+    ${htmlCapitalGain(['scadenza'], 'tuo prezzo medio di carico (i rimborsi netti nei grafici seguono invece il file cashflow, che non conosce quel prezzo)')}
 
     <section class="card tabella-card${classeChiusa('tab-costruito')}">
       ${testaComprimibile('tab-costruito', 'Acquisti', 'riassunto-costruito')}
       <div class="tabella-scroll"><div class="tabella tabella-costruito">
         <div class="riga-testa">
-          <div>Titolo</div><div>Data acquisto</div><div class="num">Nominale</div><div class="num">Prezzo medio di carico</div>
-          <div class="num">Prezzo oggi</div><div class="num">Var. %</div><div class="num">Valore oggi</div><div class="num">Commissioni (€)</div><div></div>
+          <div>Titolo</div><div>Scadenza</div><div>Data acquisto</div><div class="num">Nominale</div><div class="num">Prezzo di carico</div>
+          <div class="num">Commissioni (€)</div><div class="num">Capitale investito (€)</div><div class="num">Cedola annua netta (€)</div><div></div>
         </div>
         ${stato.costruito.map(l => rigaLotto(l, perIsin)).join('')}
       </div></div>
-      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Puoi correggere data, nominale, prezzo medio di carico (quello del broker, commissioni comprese) e commissioni scrivendo nelle caselle: la modifica si salva quando esci dalla casella o premi Invio. Cambiando il nominale, prezzo di carico e commissioni restano quelli scritti: se serve, correggi anche quelli. Per togliere del tutto un acquisto usa la ✕. Le analisi qui sotto sommano gli acquisti dello stesso titolo e usano i prezzi del file caricato. La variazione riguarda solo i prezzi (rispetto al prezzo medio di carico) e non comprende rateo né tasse sulla plusvalenza.</div>
+      <div class="tabella-piede nota-tabella">Ogni riga è un acquisto: puoi comprare più volte lo stesso titolo. Puoi correggere data, nominale, prezzo medio di carico (quello del broker, commissioni comprese) e commissioni scrivendo nelle caselle: la modifica si salva quando esci dalla casella o premi Invio. Cambiando il nominale, prezzo di carico e commissioni restano quelli scritti: se serve, correggi anche quelli. Per togliere del tutto un acquisto usa la ✕. Le analisi qui sotto sommano gli acquisti dello stesso titolo.</div>
     </section>
 
-    ${htmlPannelloAnalisi()}`;
+    ${htmlMercatoOggi()}
+
+    ${htmlPannelloAnalisi(true)}`;
 }
 
 export function aggiornaCostruito() {
   const posizioni = risolviPosizioni(sommaPerIsin(stato.costruito), stato.titoli);
   const tot = calcolaTotali(posizioni);
-  aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento(), [stato.costruito]);
-  aggiornaCapitalGain(['scadenza', 'oggi'], [stato.costruito], stato.titoli);
+  aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento(), [stato.costruito], true);
+  aggiornaCapitalGain(['scadenza'], [stato.costruito], stato.titoli);
+  aggiornaMercatoOggi([stato.costruito], tot);
 
-  const r = aggiornaRiepilogoAcquisti(stato.costruito, tot);
+  const r = aggiornaRiepilogoAcquisti(stato.costruito);
   set('riassunto-costruito', stato.costruito.length + (stato.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' · capitale investito ' + fmtNum(r.capitaleInvestito, 0) + ' €');
 
   set('avviso-costruito', '');
@@ -207,29 +209,19 @@ export function aggiornaCostruito() {
   }
 }
 
-// Riempie i riquadri degli acquisti (usati dal Costruito e dall'Aggregato). tot = totali delle posizioni ai prezzi di oggi
-export function aggiornaRiepilogoAcquisti(lotti, tot) {
+// Riempie i riquadri degli acquisti (usati dal Costruito e dall'Aggregato)
+export function aggiornaRiepilogoAcquisti(lotti) {
   const r = riepilogoAcquisti(lotti, stato.titoli);
   set('r-investito', fmtNum(r.capitaleInvestito, 0) + ' €');
   set('r-investito-nota', 'nominale × prezzo medio di carico, commissioni comprese');
-  set('r-valore', fmtNum(r.valoreOggi, 0) + ' €');
-
-  const elVar = document.getElementById('r-var');
-  if (elVar) {
-    elVar.textContent = segno(r.variazione) + fmtNum(Math.abs(r.variazione), 0) + ' €' +
-      (r.variazionePct === null ? '' : ' (' + segno(r.variazionePct) + fmtNum(Math.abs(r.variazionePct)) + '%)');
-    elVar.classList.toggle('pos', r.variazione >= 0);
-    elVar.classList.toggle('neg', r.variazione < 0);
-  }
 
   set('r-comm', fmtNum(r.commissioni) + ' €');
   set('r-comm-nota', r.commissioniPct === null ? '' : fmtNum(r.commissioniPct) + '% del capitale investito');
 
   const acq = rendimentoAcquistoPortafoglio(lotti, stato.titoli, VALUTA_PORTAFOGLIO, scadutoOggi);
   set('r-rend-comm', acq.rend === null ? '—' : fmtNum(acq.rend) + '%');
-  set('r-rend-comm-nota', acq.rend === null ? '' :
-    'fisso, dal prezzo di carico' + (tot.rendNetto === null ? '' : ' · ai prezzi di oggi: ' + fmtNum(tot.rendNetto) + '%') +
-    (acq.conteggio < acq.totale ? ' · calcolato su ' + acq.conteggio + ' di ' + acq.totale + ' acquisti' : ''));
+  set('r-rend-comm-nota', acq.rend === null ? '' : 'a scadenza, fisso: calcolato dal prezzo di carico' +
+    (acq.conteggio < acq.totale ? ' · su ' + acq.conteggio + ' di ' + acq.totale + ' acquisti' : ''));
   return r;
 }
 
@@ -344,11 +336,11 @@ radice.addEventListener('change', e => {
   correggiCostruito(stato.costruito.map(l => (l.id === lotto.id ? nuovo : l)));
 
   riga.querySelector('.mod-nominale').value = fmtNum(nominale, 0);
-  if (t) riga.querySelector('[data-valore-oggi]').textContent = fmtNum(nominale * t.prezzo / 100, 0);
-  const v = t ? (t.prezzo - carico) / carico * 100 : null;
-  const el = riga.querySelector('[data-var]');
-  el.textContent = v === null ? '—' : segno(v) + fmtNum(Math.abs(v)) + '%';
-  el.classList.toggle('pos', v !== null && v >= 0);
-  el.classList.toggle('neg', v !== null && v < 0);
+  if (t) {
+    const capitale = riga.querySelector('[data-capitale]');
+    if (capitale) capitale.textContent = fmtNum(nominale * carico / 100, 0);
+    const cedola = riga.querySelector('[data-cedola]');
+    if (cedola) cedola.textContent = fmtNum(nominale * (cedolaNetta(t) || 0) / 100);
+  }
   aggiornaCostruito();
 });

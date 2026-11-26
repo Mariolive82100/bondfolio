@@ -1,5 +1,6 @@
 // Report in PDF di Bozza o Costruito del portafoglio selezionato.
 // Si prepara una pagina apposta e si apre la stampa del browser: da lì si sceglie "Salva come PDF".
+// Il report del Costruito contiene solo i dati dell'acquisto e gli incassi ancora da ricevere.
 // Le tabelle dei titoli si scrivono qui; riquadri, grafici e calendario sono copiati da quelli a schermo,
 // così i numeri del report sono gli stessi che si vedono.
 
@@ -40,29 +41,28 @@ function tabellaBozza() {
     </tbody></table>`;
 }
 
+// Nel Costruito ci sono solo i dati dell'acquisto: niente prezzi o valori di oggi
 function tabellaCostruito() {
   const perIsin = new Map(stato.titoli.map(t => [t.isin, t]));
   let nominale = 0;
   const righe = stato.costruito.slice().sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0)).map(l => {
     const t = perIsin.get(l.isin);
     const motivo = !t ? 'Non più nel file' : t.valuta !== VALUTA_PORTAFOGLIO ? 'Valuta non EUR' : scadutoOggi(t) ? 'Scaduto' : '';
-    if (motivo) return `<tr>${cellaTitolo(t ? t.nome : l.isin, l.isin)}<td>${fmtData(l.data)}</td><td class="num">${fmtNum(l.nominale, 0)}</td><td colspan="7">Escluso dai calcoli: ${motivo}</td></tr>`;
+    if (motivo) return `<tr>${cellaTitolo(t ? t.nome : l.isin, l.isin)}<td></td><td>${fmtData(l.data)}</td><td class="num">${fmtNum(l.nominale, 0)}</td><td colspan="4">Escluso dai calcoli: ${motivo}</td></tr>`;
     nominale += l.nominale;
-    const variazione = (t.prezzo - l.prezzoCarico) / l.prezzoCarico * 100;
-    return `<tr>${cellaTitolo(t.nome, l.isin)}<td>${fmtData(l.data)}</td>
-      <td class="num">${fmtNum(l.nominale, 0)}</td><td class="num">${fmtNum(l.prezzoCarico, 3)}</td><td class="num">${fmtNum(t.prezzo)}</td>
-      <td class="num">${(variazione > 0 ? '+' : '') + fmtNum(variazione)}%</td>
-      <td class="num">${fmtNum(l.nominale * l.prezzoCarico / 100, 0)}</td><td class="num">${fmtNum(l.nominale * t.prezzo / 100, 0)}</td>
+    return `<tr>${cellaTitolo(t.nome, l.isin)}<td>${fmtData(t.scadenza)}</td><td>${fmtData(l.data)}</td>
+      <td class="num">${fmtNum(l.nominale, 0)}</td><td class="num">${fmtNum(l.prezzoCarico, 3)}</td>
+      <td class="num">${fmtNum(l.nominale * l.prezzoCarico / 100, 0)}</td>
       <td class="num">${fmtNum(l.commissioni || 0)}</td><td class="num">${fmtNum(l.nominale * (cedolaNetta(t) || 0) / 100)}</td></tr>`;
   }).join('');
   const r = riepilogoAcquisti(stato.costruito, stato.titoli);
   const cedole = calcolaTotali(risolviPosizioni(stato.costruito, stato.titoli)).cedoleNette;
   return `<table class="report-tabella">
-    ${testa([['Titolo'], ['Data acquisto'], ['Nominale', 1], ['Prezzo di carico', 1], ['Prezzo oggi', 1], ['Var. %', 1], ['Capitale investito (€)', 1], ['Valore oggi (€)', 1], ['Commissioni (€)', 1], ['Cedola annua netta (€)', 1]])}
+    ${testa([['Titolo'], ['Scadenza'], ['Data acquisto'], ['Nominale', 1], ['Prezzo di carico', 1], ['Capitale investito (€)', 1], ['Commissioni (€)', 1], ['Cedola annua netta (€)', 1]])}
     <tbody>${righe}
-      <tr class="report-totale"><td colspan="2">Totale degli acquisti inclusi nei calcoli</td>
-        <td class="num">${fmtNum(nominale, 0)}</td><td colspan="3"></td>
-        <td class="num">${fmtNum(r.capitaleInvestito, 0)}</td><td class="num">${fmtNum(r.valoreOggi, 0)}</td>
+      <tr class="report-totale"><td colspan="3">Totale degli acquisti inclusi nei calcoli</td>
+        <td class="num">${fmtNum(nominale, 0)}</td><td></td>
+        <td class="num">${fmtNum(r.capitaleInvestito, 0)}</td>
         <td class="num">${fmtNum(r.commissioni)}</td><td class="num">${fmtNum(cedole)}</td></tr>
     </tbody></table>`;
 }
@@ -79,7 +79,9 @@ function copia(elemento) {
 const scheda = id => { const el = document.getElementById(id); return el ? el.closest('.card') : null; };
 
 function costruisci(tipo) {
-  const riquadri = Array.from(radice.querySelectorAll('.riepilogo')).filter(r => !r.classList.contains('riepilogo-gain'));
+  // il riquadro del mercato di oggi non entra nel report
+  const riquadri = Array.from(radice.querySelectorAll('.riepilogo'))
+    .filter(r => !r.classList.contains('riepilogo-gain') && !r.closest('.mercato'));
   const grafici = ['g-flusso', 'g-cedole-anno', 'g-scadenze', 'g-cedole'].map(id => copia(scheda(id))).join('');
   const torte = ['g-emittenti', 'g-titoli', 'g-tipo', 'g-rating'].map(id => copia(scheda(id))).join('');
   const calendario = radice.querySelector('.tabella-calendario') ? copia(document.getElementById('g-calendario'))
@@ -87,7 +89,8 @@ function costruisci(tipo) {
       ? 'Calendario non disponibile: nel file cashflow non ci sono incassi futuri per questi titoli.'
       : 'Calendario non disponibile: il file cashflow non è caricato (flussi e incassi nei grafici sono stime).'}</p>`;
   const impatto = tipo === 'bozza' ? radice.querySelector('#impatto-box .card') : null;
-  const prezzi = dataFile() ? ' · prezzi del file del ' + fmtData(dataFile()) : '';
+  const nomeCalendario = tipo === 'bozza' ? 'Calendario incassi' : 'Incassi futuri';
+  const prezzi = !dataFile() ? '' : (tipo === 'bozza' ? ' · prezzi del file del ' : ' · rating e dati dei titoli dal file del ') + fmtData(dataFile());
 
   return `
     <header class="report-testata">
@@ -104,7 +107,7 @@ function costruisci(tipo) {
     <h2 class="report-pagina-nuova">Grafici</h2>
     <div class="grafici">${grafici}</div>
     <div class="grafici">${torte}</div>
-    <h2 class="report-pagina-nuova">Calendario incassi</h2>
+    <h2 class="report-pagina-nuova">${nomeCalendario}</h2>
     <div class="report-calendario">${calendario}</div>
     <p class="report-nota report-avvertenza">I valori indicati come stime non sono dati ufficiali. Report per uso personale: non è una consulenza finanziaria.</p>`;
 }

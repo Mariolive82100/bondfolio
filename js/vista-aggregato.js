@@ -10,6 +10,7 @@ import { dataCalcolo } from './data-calcolo.js';
 import { htmlRiepilogoAcquisti, aggiornaRiepilogoAcquisti } from './vista-costruito.js';
 import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello.js';
 import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
+import { htmlMercatoOggi, aggiornaMercatoOggi } from './mercato-oggi.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData } from './formati.js';
 
@@ -68,7 +69,7 @@ export function htmlAggregato() {
 
     ${htmlRiepilogoAcquisti()}
 
-    ${htmlCapitalGain(['scadenza', 'oggi'], 'prezzo medio di carico di ciascun portafoglio: il conto si fa portafoglio per portafoglio e poi si somma (i rimborsi netti nei grafici seguono invece il file cashflow, che non conosce quel prezzo)')}
+    ${htmlCapitalGain(['scadenza'], 'prezzo medio di carico di ciascun portafoglio: il conto si fa portafoglio per portafoglio e poi si somma (i rimborsi netti nei grafici seguono invece il file cashflow, che non conosce quel prezzo)')}
 
     <section class="card tabella-card${classeChiusa('tab-aggregato')}">
       ${testaComprimibile('tab-aggregato', 'Titoli sommati', 'riassunto-aggregato')}
@@ -76,13 +77,15 @@ export function htmlAggregato() {
       <div class="tabella-piede nota-tabella">Una riga per titolo: i nominali dello stesso titolo in più portafogli sono sommati. Il prezzo medio di carico è la media pesata di tutti gli acquisti. Per modificare gli acquisti vai in Costruito e scegli il portafoglio.</div>
     </section>
 
-    ${htmlPannelloAnalisi()}`;
+    ${htmlMercatoOggi()}
+
+    ${htmlPannelloAnalisi(true)}`;
 }
 
 function righeTitoli(posizioni, tot, lista) {
   const testa = `<div class="riga-testa">
       <div>Titolo</div><div>Scadenza</div><div class="num">Nominale</div><div class="num">Peso</div><div class="num">Prezzo medio di carico</div>
-      <div class="num">Capitale investito (€)</div><div class="num">Valore oggi (€)</div><div class="num">Cedola annua netta (€)</div><div>Portafogli</div>
+      <div class="num">Capitale investito (€)</div><div class="num">Cedola annua netta (€)</div><div>Portafogli</div>
     </div>`;
   const righe = posizioni.filter(p => p.valida).sort((a, b) => b.nominale - a.nominale).map(p => {
     let capitale = 0;
@@ -103,7 +106,6 @@ function righeTitoli(posizioni, tot, lista) {
       <div class="num" data-eti="Peso">${fmtNum(peso(p, tot), 1)}%</div>
       <div class="num" data-eti="Prezzo di carico">${fmtNum(capitale / p.nominale * 100, 3)}</div>
       <div class="num" data-eti="Capitale (€)">${fmtNum(capitale, 0)}</div>
-      <div class="num" data-eti="Valore oggi (€)">${fmtNum(p.controvalore, 0)}</div>
       <div class="num" data-eti="Cedola annua (€)">${fmtNum(p.cedolaAnnuaNetta)}</div>
       <div class="agg-dove" data-eti="Portafogli">${testoDove}</div></div>`;
   }).join('');
@@ -119,9 +121,10 @@ export function aggiornaAggregato() {
   const posizioni = risolviPosizioni(sommaPerIsin(lotti), stato.titoli);
   const tot = calcolaTotali(posizioni);
 
-  const r = aggiornaRiepilogoAcquisti(lotti, tot);
-  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo(), gruppi);
-  aggiornaCapitalGain(['scadenza', 'oggi'], gruppi, stato.titoli);
+  const r = aggiornaRiepilogoAcquisti(lotti);
+  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo(), gruppi, true);
+  aggiornaCapitalGain(['scadenza'], gruppi, stato.titoli);
+  aggiornaMercatoOggi(gruppi, tot);
   radice.innerHTML = righeTitoli(posizioni, tot, lista);
   document.getElementById('riassunto-aggregato').textContent =
     quanti(tot.numero, 'titolo', 'titoli') + ' · nominale ' + fmtNum(tot.nominale, 0) + ' €';

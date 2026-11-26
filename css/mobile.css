@@ -68,7 +68,7 @@
   /* ----- Tabelle: una scheda per ogni riga, senza scorrere di lato -----
      L'etichetta di ogni valore viene dall'attributo data-eti della cella. */
   .tabella-scroll { overflow-x: visible; }
-  .tabella, .tabella-selezione, .tabella-portafoglio, .tabella-conferma, .tabella-costruito, .tabella-impatto { min-width: 0; max-width: 100%; }
+  .tabella, .tabella-selezione, .tabella-portafoglio, .tabella-conferma, .tabella-costruito, .tabella-mercato, .tabella-impatto { min-width: 0; max-width: 100%; }
 
   .tabella .riga {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -109,9 +109,13 @@
   .tabella-costruito .riga > [data-eti="Nominale"],
   .tabella-costruito .riga > [data-eti="Prezzo di carico"],
   .tabella-costruito .riga > [data-eti="Commissioni (€)"] { grid-column: span 3; }
-  .tabella-costruito .riga > [data-eti="Prezzo oggi"],
-  .tabella-costruito .riga > [data-eti="Var. %"],
-  .tabella-costruito .riga > [data-eti="Valore oggi"] { order: 1; }
+  .tabella-costruito .riga > [data-eti="Scadenza"],
+  .tabella-costruito .riga > [data-eti^="Capitale"],
+  .tabella-costruito .riga > [data-eti^="Cedola annua"] { order: 1; }
+
+  /* Mercato di oggi */
+  .mercato-corpo .riepilogo { padding: 10px; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tabella-mercato .riga > .cella-titolo { grid-column: 1 / -1; }
 
   /* Impatto: nome dell'indicatore sopra, i tre valori sotto */
   .tabella-impatto .riga > :first-child { grid-column: 1 / -1; font-weight: 600; }

@@ -27,6 +27,7 @@
   #report .riepilogo { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; break-inside: avoid; }
   #report .riepilogo .card { gap: 2px; break-inside: avoid; }
   #report .riepilogo .valore { font-size: 15px; }
+  #report .riepilogo.riepilogo-tre { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #report .riepilogo.riepilogo-gain { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
   #report .riepilogo-blocco { gap: 3px; break-inside: avoid; }
 

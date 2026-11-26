@@ -42,6 +42,7 @@ const FILE_APP = [
   'js/firebase-config.js',
   'js/formati.js',
   'js/grafici.js',
+  'js/mercato-oggi.js',
   'js/portafoglio-calcoli.js',
   'js/portafogli.js',
   'js/pwa.js',

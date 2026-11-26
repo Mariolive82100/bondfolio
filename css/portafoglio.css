@@ -13,6 +13,7 @@
 .riepilogo { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
 @media (max-width: 1100px) { .riepilogo { grid-template-columns: repeat(2, 1fr); } }
 .riepilogo .card { display: flex; flex-direction: column; gap: 6px; }
+@media (min-width: 821px) { .riepilogo.riepilogo-tre { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .riepilogo .valore { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .portafoglio .messaggio { margin-top: 0; }
@@ -65,7 +66,7 @@
 .conferma-totali strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 
 .tabella-costruito { min-width: 900px; }
-.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(150px, 2fr) 140px 86px 96px 62px 68px 82px 84px 36px; }
+.tabella-costruito .riga, .tabella-costruito .riga-testa { grid-template-columns: minmax(150px, 2fr) 80px 138px 86px 92px 84px 78px 74px 36px; }
 /* solo PC: spazi ridotti, così la tabella entra tutta anche a 1280px (sul telefono diventa a schede) */
 @media (min-width: 821px) {
   .tabella-costruito .riga, .tabella-costruito .riga-testa { column-gap: 8px; padding-left: 14px; padding-right: 14px; }
@@ -94,6 +95,15 @@
 .card.chiusa .tabella-scroll, .card.chiusa .tabella-piede { display: none; }
 .card:not(.chiusa) > .sezione-testa { border-bottom: 1px solid #EEF0F3; }
 #impatto-box:empty { display: none; }
+
+/* ---------- Mercato di oggi (Costruito e Aggregato) ---------- */
+.card.chiusa .mercato-corpo { display: none; }
+.mercato-corpo .riepilogo { padding: 14px 20px; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .mercato-corpo .riepilogo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mercato-corpo .riepilogo .card { box-shadow: none; border: 1px solid #E4E7EC; }
+.mercato-corpo .riepilogo .valore { font-size: 20px; }
+.tabella-mercato { min-width: 640px; }
+.tabella-mercato .riga, .tabella-mercato .riga-testa { grid-template-columns: minmax(180px, 2fr) 90px 100px 90px 80px 100px; column-gap: 10px; }
 
 /* ---------- Capital gain ---------- */
 .riepilogo-blocco { display: flex; flex-direction: column; gap: 6px; }

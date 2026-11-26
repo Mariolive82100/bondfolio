@@ -11,9 +11,9 @@
 .agg-voce strong { font-size: 14px; overflow-wrap: anywhere; }
 .agg-voce small { font-size: 12px; color: var(--testo-soft); }
 
-.tabella-aggregato { min-width: 980px; }
+.tabella-aggregato { min-width: 880px; }
 .tabella-aggregato .riga, .tabella-aggregato .riga-testa {
-  grid-template-columns: minmax(180px, 2fr) 84px 88px 52px 82px 90px 90px 90px minmax(110px, 1.2fr);
+  grid-template-columns: minmax(180px, 2fr) 84px 88px 52px 82px 90px 90px minmax(110px, 1.2fr);
   column-gap: 10px;
 }
 .tabella-aggregato .agg-dove { font-size: 12px; overflow-wrap: anywhere; }

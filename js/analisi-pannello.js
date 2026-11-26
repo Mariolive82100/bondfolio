@@ -11,9 +11,9 @@ import { costruisciCalendario, prossimiDodiciMesi, unisciAnni, aggiungiStimaMens
 
 // Se c'è il calendario reale (file cashflow o voci salvate online), i grafici lo usano e per i soli titoli
 // senza dati reali aggiungono la stima, segnalandolo. Senza calendario reale è tutto stimato. Quando il file cambia, il pannello si ridisegna da solo.
-let ultimaChiamata = null; // { posizioni, dataRif, gruppi }
+let ultimaChiamata = null; // { posizioni, dataRif, gruppi, costruito }
 document.addEventListener('cashflow-aggiornato', () => {
-  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif, ultimaChiamata.gruppi);
+  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif, ultimaChiamata.gruppi, ultimaChiamata.costruito);
 });
 
 // Calendario reale per il portafoglio, oppure null (file non caricato o nessun titolo coperto).
@@ -30,31 +30,53 @@ function calendarioReale(posizioni, dataRif) {
   return cal.righe.length > 0 ? cal : null;
 }
 
-// Codice HTML del pannello (numeri e grafici si riempiono poi con aggiornaPannelloAnalisi)
-export function htmlPannelloAnalisi() {
+// Riquadro con nome, valore e (se serve) una riga di spiegazione
+const scheda = (nome, id, nota = '') => `<div class="card"><div class="testo-soft">${nome}</div><div class="valore" id="${id}"></div>${nota}</div>`;
+const notaFissa = testo => `<div class="testo-soft">${testo}</div>`;
+
+// La Bozza si guarda ai prezzi del file: ci sono anche rendimenti, duration e capitale stimato
+function riquadriBozza() {
+  return `<div class="riepilogo">
+        ${scheda('Nominale totale', 't-nominale')}
+        ${scheda('Numero titoli', 't-numero')}
+        ${scheda('Cedole annue nette', 't-cedole-nette')}
+        ${scheda('Capitale impiegato (stima)', 't-controvalore')}
+        ${scheda('Rendimento lordo', 't-rend-lordo')}
+        ${scheda('Rendimento netto', 't-rend-netto')}
+        ${scheda('Duration', 't-duration')}
+        ${scheda('Scadenza media', 't-scadenza')}
+        ${scheda('Cedola media netta', 't-cedola-media')}
+        ${scheda('Rating medio', 't-rating', '<div class="testo-soft" id="t-rating-nota"></div>')}
+      </div>`;
+}
+
+// Nel portafoglio già comprato restano solo i dati che non dipendono dal prezzo di oggi
+function riquadriCostruito() {
+  return `<div class="riepilogo riepilogo-tre">
+        ${scheda('Nominale totale', 't-nominale')}
+        ${scheda('Numero titoli', 't-numero')}
+        ${scheda('Cedole annue nette', 't-cedole-nette')}
+        ${scheda('Scadenza media residua', 't-scadenza', notaFissa('da oggi, pesata sul capitale investito'))}
+        ${scheda('Cedola media netta', 't-cedola-media', notaFissa('sul nominale, media pesata sul capitale investito'))}
+        ${scheda('Rating medio attuale', 't-rating', notaFissa('pesato sul capitale investito') + '<div class="testo-soft" id="t-rating-nota"></div>')}
+      </div>`;
+}
+
+// Codice HTML del pannello (numeri e grafici si riempiono poi con aggiornaPannelloAnalisi).
+// costruito = true per i portafogli già comprati (Costruito e Aggregato)
+export function htmlPannelloAnalisi(costruito = false) {
   return `
-      <div class="riepilogo">
-        <div class="card"><div class="testo-soft">Nominale totale</div><div class="valore" id="t-nominale"></div></div>
-        <div class="card"><div class="testo-soft">Numero titoli</div><div class="valore" id="t-numero"></div></div>
-        <div class="card"><div class="testo-soft">Cedole annue nette</div><div class="valore" id="t-cedole-nette"></div></div>
-        <div class="card"><div class="testo-soft">Capitale impiegato (stima)</div><div class="valore" id="t-controvalore"></div></div>
-        <div class="card"><div class="testo-soft">Rendimento lordo</div><div class="valore" id="t-rend-lordo"></div></div>
-        <div class="card"><div class="testo-soft">Rendimento netto</div><div class="valore" id="t-rend-netto"></div></div>
-        <div class="card"><div class="testo-soft">Duration</div><div class="valore" id="t-duration"></div></div>
-        <div class="card"><div class="testo-soft">Scadenza media</div><div class="valore" id="t-scadenza"></div></div>
-        <div class="card"><div class="testo-soft">Cedola media netta</div><div class="valore" id="t-cedola-media"></div></div>
-        <div class="card"><div class="testo-soft">Rating medio</div><div class="valore" id="t-rating"></div><div class="testo-soft" id="t-rating-nota"></div></div>
-      </div>
+      ${costruito ? riquadriCostruito() : riquadriBozza()}
 
       <div class="grafici">
         <section class="card">
-          <div class="card-titolo">Flusso di cassa per anno</div>
-          <div class="testo-soft">Cedole nette + rimborsi (€)</div>
+          <div class="card-titolo">${costruito ? 'Incassi futuri per anno' : 'Flusso di cassa per anno'}</div>
+          <div class="testo-soft">${costruito ? 'Cedole nette + rimborsi ancora da ricevere (€)' : 'Cedole nette + rimborsi (€)'}</div>
           <div id="g-flusso"></div>
           <div class="nota-grafico" id="g-flusso-nota"></div>
         </section>
         <section class="card">
-          <div class="card-titolo">Cedole nette per anno</div>
+          <div class="card-titolo">${costruito ? 'Cedole nette future per anno' : 'Cedole nette per anno'}</div>
           <div class="testo-soft">Solo le cedole, senza i rimborsi (€)</div>
           <div id="g-cedole-anno"></div>
         </section>
@@ -64,8 +86,8 @@ export function htmlPannelloAnalisi() {
           <div id="g-scadenze"></div>
         </section>
         <section class="card">
-          <div class="card-titolo">Incassi cedolari netti per mese</div>
-          <div class="testo-soft">Cedole nette incassate in ogni mese (€)</div>
+          <div class="card-titolo">${costruito ? 'Incassi cedolari futuri per mese' : 'Incassi cedolari netti per mese'}</div>
+          <div class="testo-soft">${costruito ? 'Cedole nette ancora da ricevere in ogni mese (€)' : 'Cedole nette incassate in ogni mese (€)'}</div>
           <div id="g-cedole"></div>
           <div class="nota-grafico" id="g-cedole-nota"></div>
         </section>
@@ -90,8 +112,8 @@ export function htmlPannelloAnalisi() {
           <div id="g-rating"></div>
         </section>
         <section class="card" style="grid-column: 1 / -1;">
-          <div class="card-titolo">Calendario incassi</div>
-          <div class="testo-soft">Date e importi reali di cedole e rimborsi, al netto delle tasse (€)</div>
+          <div class="card-titolo">${costruito ? 'Incassi futuri' : 'Calendario incassi'}</div>
+          <div class="testo-soft">${costruito ? 'Solo cedole e rimborsi ancora da ricevere, da oggi in avanti: date e importi reali al netto delle tasse (€)' : 'Date e importi reali di cedole e rimborsi, al netto delle tasse (€)'}</div>
           <div id="g-calendario"></div>
         </section>
       </div>
@@ -101,7 +123,8 @@ export function htmlPannelloAnalisi() {
 // Riempie riepilogo e grafici. dataRif = data di riferimento del file ("aaaa-mm-gg")
 // gruppi = un elenco di acquisti [{ isin, nominale, prezzoCarico }] per ogni portafoglio:
 // da questi prezzi si calcola il capital gain del calendario
-export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, gruppi = []) {
+// costruito = true: scadenza, cedola media e rating si pesano su quanto hai investito, non sui prezzi di oggi
+export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, gruppi = [], costruito = false) {
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
   set('t-numero', String(tot.numero));
@@ -111,18 +134,25 @@ export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, gruppi = []) {
   set('t-rend-lordo', tot.rendLordo === null ? '—' : fmtNum(tot.rendLordo) + '%');
   set('t-rend-netto', tot.rendNetto === null ? '—' : fmtNum(tot.rendNetto) + '%');
   set('t-duration', tot.duration === null ? '—' : fmtNum(tot.duration, 1) + ' anni');
-  const ind = calcolaIndicatori(posizioni, dataRif);
+  const ind = calcolaIndicatori(costruito ? pesateSulCosto(posizioni, gruppi) : posizioni, dataRif);
   set('t-scadenza', ind.scadenzaAnni === null ? '—' : fmtNum(ind.scadenzaAnni, 1) + ' anni');
   set('t-cedola-media', ind.cedolaNetta === null ? '—' : fmtNum(ind.cedolaNetta) + '%');
   set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
   set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
     ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
-  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif, gruppi: gruppi };
-  aggiornaGrafici(posizioni, dataRif, gruppi);
+  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif, gruppi: gruppi, costruito: costruito };
+  aggiornaGrafici(posizioni, dataRif, gruppi, costruito);
+}
+
+// Stesse posizioni, ma il peso di ogni titolo è il capitale investito (nominale x prezzo di carico / 100)
+function pesateSulCosto(posizioni, gruppi) {
+  const capitale = new Map();
+  gruppi.flat().forEach(l => capitale.set(l.isin, (capitale.get(l.isin) || 0) + l.nominale * l.prezzoCarico / 100));
+  return posizioni.map(p => ({ ...p, controvalore: capitale.get(p.isin) || 0 }));
 }
 
 // Ridisegna i grafici (a ogni modifica dei nominali)
-function aggiornaGrafici(posizioni, dataRif, gruppi) {
+function aggiornaGrafici(posizioni, dataRif, gruppi, costruito) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
   const cal = calendarioReale(posizioni, dataRif);
@@ -145,10 +175,11 @@ function aggiornaGrafici(posizioni, dataRif, gruppi) {
     titolo: x.anno + ': ' + fmtNum(x.cedole) + ' € di cedole nette'
   }))));
   const totCedole = flusso.reduce((s, x) => s + x.cedole, 0), totRimborsi = flusso.reduce((s, x) => s + x.rimborsi, 0);
+  const inizioNota = costruito ? 'Ancora da ricevere fino alla scadenza: ' : 'Fino alla scadenza: ';
   metti('g-flusso-nota', flusso.length === 0 ? '' : esatto
-    ? 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € · ' + origine
+    ? inizioNota +  + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € · ' + origine
       + ' · per i dati reali i rimborsi sono al netto delle tasse su capital gain e disaggio' + (stimati.length > 0 ? '; per la stima il rimborso è al 100%, senza quelle tasse' : '')
-    : 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (stima: rimborso al 100%, cedole dai mesi ancora da pagare)');
+    : inizioNota + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (stima: rimborso al 100%, cedole dai mesi ancora da pagare)');
 
   const scadenze = scalettaScadenze(posizioni);
   metti('g-scadenze', scadenze.length === 0 ? graficoVuoto('Nessun dato') : graficoBarre(scadenze.map(x => ({

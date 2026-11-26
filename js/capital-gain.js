@@ -72,14 +72,18 @@ const RIQUADRI = {
   oggi: { id: 'cg-oggi', nome: 'Plusvalenza netta se vendi oggi (stima)', prezzo: t => t.prezzo }
 };
 
-// quali = ['scadenza'] oppure ['scadenza', 'oggi']; base = da quale prezzo di acquisto si parte
-export function htmlCapitalGain(quali, base) {
-  const schede = quali.map(q => `<div class="card"><div class="testo-soft">${RIQUADRI[q].nome}</div>
+// Una singola scheda: q = 'scadenza' oppure 'oggi'
+export function htmlSchedaGain(q) {
+  return `<div class="card"><div class="testo-soft">${RIQUADRI[q].nome}</div>
       <div class="valore" id="${RIQUADRI[q].id}"></div>
       <div class="testo-soft" id="${RIQUADRI[q].id}-nota"></div>
-      <div class="testo-soft" id="${RIQUADRI[q].id}-minus"></div></div>`).join('');
+      <div class="testo-soft" id="${RIQUADRI[q].id}-minus"></div></div>`;
+}
+
+// quali = elenco delle schede da mostrare; base = da quale prezzo di acquisto si parte
+export function htmlCapitalGain(quali, base) {
   return `<div class="riepilogo-blocco">
-      <div class="riepilogo riepilogo-gain">${schede}</div>
+      <div class="riepilogo riepilogo-gain">${quali.map(htmlSchedaGain).join('')}</div>
       <div class="testo-soft nota-gain">Calcolato dal ${base}, titolo per titolo, con aliquota 12,5% o 26%. Non comprende cedole, disaggio di emissione, rateo e zainetto fiscale.</div>
     </div>`;
 }
