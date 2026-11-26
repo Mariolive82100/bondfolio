@@ -1,0 +1,10 @@
+/* Barra in alto: titolo a sinistra, accesso a destra */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.account {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+}
+.account-utente { color: var(--testo-soft); font-size: 13px; }
+.account-errore { color: #B42318; font-size: 13px; max-width: 360px; }
+.account .btn { white-space: nowrap; }
