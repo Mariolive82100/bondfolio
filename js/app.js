@@ -1,4 +1,4 @@
-// Gestione della navigazione tra le 4 schermate
+// Gestione della navigazione tra le 5 schermate
 
 import { VERSIONE } from './versione.js';
 import { avviaPwa } from './pwa.js';
@@ -12,7 +12,8 @@ const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni"],
   selezione: ['Selezione', 'Filtra le obbligazioni e aggiungile al portafoglio'],
   bozza: ['Bozza', 'Simula il portafoglio: modifica i nominali e guarda subito rendimento, duration, cedole e diversificazione'],
-  costruito: ['Portafoglio costruito', 'I tuoi acquisti confermati e la loro analisi']
+  costruito: ['Portafoglio costruito', 'I tuoi acquisti confermati e la loro analisi'],
+  aggregato: ['Aggregato', 'La somma dei portafogli costruiti che scegli (sola lettura)']
 };
 
 const voci = document.querySelectorAll('.nav-item');
@@ -25,13 +26,13 @@ avviaPwa();
 
 function mostra(nome) {
   voci.forEach(v => v.classList.toggle('is-active', v.dataset.view === nome));
-  // Bozza e Costruito usano la stessa area: cambia solo il contenuto
-  const diPortafoglio = nome === 'bozza' || nome === 'costruito';
+  // Bozza, Costruito e Aggregato usano la stessa area: cambia solo il contenuto
+  const diPortafoglio = nome === 'bozza' || nome === 'costruito' || nome === 'aggregato';
   const area = diPortafoglio ? 'portafoglio' : nome;
   viste.forEach(v => { v.hidden = (v.id !== 'view-' + area); });
   if (diPortafoglio) document.dispatchEvent(new CustomEvent('mostra-portafoglio', { detail: nome }));
-  // La scelta del portafoglio serve ovunque tranne che nella schermata Dati
-  document.getElementById('barra-portafogli').hidden = nome === 'dati';
+  // La scelta del portafoglio non serve in Dati e nell'Aggregato (che ha le sue caselle)
+  document.getElementById('barra-portafogli').hidden = nome === 'dati' || nome === 'aggregato';
   titolo.textContent = TESTI[nome][0];
   sottotitolo.textContent = TESTI[nome][1];
 }

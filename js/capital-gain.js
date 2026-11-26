@@ -35,19 +35,34 @@ export function capitalGainPerTitolo(acquisti, titoli, prezzoFinale) {
   return risultato;
 }
 
-// Totali del portafoglio
-export function capitalGain(acquisti, titoli, prezzoFinale) {
+// gruppi = [acquisti di un portafoglio, acquisti di un altro, ...]. Il conto si fa dentro ogni portafoglio
+// (ognuno con il suo prezzo di carico) e poi si somma: un guadagno in uno non cancella la minusvalenza di un altro.
+// Restituisce isin -> { netto (guadagni al netto delle tasse), minus (minusvalenze, numero positivo) }
+export function guadagniPerTitolo(gruppi, titoli, prezzoFinale) {
+  const somme = new Map();
+  gruppi.forEach(acquisti => capitalGainPerTitolo(acquisti, titoli, prezzoFinale).forEach((v, isin) => {
+    const s = somme.get(isin) || { netto: 0, minus: 0 };
+    if (v.differenza > 0) s.netto += v.netto; else s.minus -= v.differenza;
+    somme.set(isin, s);
+  }));
+  return somme;
+}
+
+// Totali di uno o più portafogli
+export function capitalGain(gruppi, titoli, prezzoFinale) {
   const r = { titoli: 0, guadagni: 0, tasse: 0, netto: 0, minus: 0, titoliInPerdita: 0 };
-  capitalGainPerTitolo(acquisti, titoli, prezzoFinale).forEach(v => {
+  const inPerdita = new Set();
+  gruppi.forEach(acquisti => capitalGainPerTitolo(acquisti, titoli, prezzoFinale).forEach((v, isin) => {
     r.titoli += 1;
     if (v.differenza > 0) {
       r.guadagni += v.differenza;
       r.tasse += v.tasse;
     } else if (v.differenza < 0) {
       r.minus += -v.differenza;
-      r.titoliInPerdita += 1;
+      inPerdita.add(isin);
     }
-  });
+  }));
+  r.titoliInPerdita = inPerdita.size;
   r.netto = r.guadagni - r.tasse;
   return r;
 }
@@ -69,12 +84,12 @@ export function htmlCapitalGain(quali, base) {
     </div>`;
 }
 
-export function aggiornaCapitalGain(quali, acquisti, titoli) {
+export function aggiornaCapitalGain(quali, gruppi, titoli) {
   quali.forEach(q => {
     const riquadro = RIQUADRI[q];
     const valore = document.getElementById(riquadro.id);
     if (!valore) return;
-    const r = capitalGain(acquisti, titoli, riquadro.prezzo);
+    const r = capitalGain(gruppi, titoli, riquadro.prezzo);
     valore.textContent = r.titoli === 0 ? '—' : fmtNum(r.netto) + ' €';
     document.getElementById(riquadro.id + '-nota').textContent = r.titoli === 0 ? ''
       : r.guadagni > 0 ? 'guadagni ' + fmtNum(r.guadagni) + ' € − tasse ' + fmtNum(r.tasse) + ' €' : 'nessun titolo in guadagno';

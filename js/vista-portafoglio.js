@@ -1,4 +1,4 @@
-// Schermate 3 e 4: Bozza e Portafoglio costruito (due voci del menu, stessa area della pagina)
+// Schermate 3, 4 e 5: Bozza, Portafoglio costruito e Aggregato (voci diverse del menu, stessa area della pagina)
 
 import { stato, impostaBozza } from './state.js';
 import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta } from './portafoglio-calcoli.js';
@@ -6,13 +6,14 @@ import { htmlPannelloAnalisi, aggiornaPannelloAnalisi } from './analisi-pannello
 import { htmlCostruito, aggiornaCostruito, htmlConferma, aggiornaConferma, aggiornaImpatto, inConferma, annullaConferma } from './vista-costruito.js';
 import { cedolaNetta } from './filtri.js';
 import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
+import { htmlAggregato, aggiornaAggregato } from './vista-aggregato.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
 import { dataCalcolo, dataFile, giorniFileVecchio } from './data-calcolo.js';
 
 const radice = document.getElementById('view-portafoglio');
 
-let modo = 'bozza'; // 'bozza' oppure 'costruito'
+let modo = 'bozza'; // 'bozza', 'costruito' oppure 'aggregato'
 let aggiornandoDaQui = false; // true quando la modifica arriva da questa schermata
 
 function riga(p) {
@@ -55,6 +56,11 @@ function disegna() {
   const avvisoFile = giorniVecchio > 7
     ? `<div class="messaggio messaggio-avviso">I prezzi del file sono del ${fmtData(dataFile())} (${giorniVecchio} giorni fa): prezzi e rendimenti sono quelli di quel giorno. Flussi di cassa, scadenza media, durata e titoli scaduti sono invece aggiornati a oggi. Per prezzi aggiornati carica un nuovo file nella schermata Dati.</div>`
     : '';
+  if (modo === 'aggregato') {
+    radice.innerHTML = `<div class="portafoglio">${avvisoFile}${htmlAggregato()}</div>`;
+    aggiornaAggregato();
+    return;
+  }
   const bottoni = modo === 'bozza' && stato.bozza.length > 0 && !inConferma() ? `
           <button class="btn btn-primario" data-azione="conferma-apri">Conferma acquisto</button>
           <button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>`
@@ -160,9 +166,9 @@ function aggiornaNumeri() {
   // In bozza si comprerebbe ai prezzi del file
   const acquisti = posizioni.filter(p => p.valida)
     .map(p => ({ isin: p.isin, nominale: p.nominale, prezzoCarico: p.titolo.prezzo }));
-  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo(), acquisti);
+  aggiornaPannelloAnalisi(posizioni, tot, dataCalcolo(), [acquisti]);
   aggiornaImpatto();
-  aggiornaCapitalGain(['scadenza'], acquisti, stato.titoli);
+  aggiornaCapitalGain(['scadenza'], [acquisti], stato.titoli);
 
   set('avviso-escluse', tot.escluse === 1
     ? '1 titolo è escluso dai calcoli (non presente nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'
@@ -232,6 +238,8 @@ radice.addEventListener('click', e => {
 
 document.addEventListener('dati-aggiornati', disegna);
 document.addEventListener('costruito-aggiornato', disegna);
+// Portafogli arrivati, rinominati o eliminati dalla sincronizzazione
+document.addEventListener('elenco-portafogli-aggiornato', () => { if (modo === 'aggregato') disegna(); });
 document.addEventListener('ridisegna-portafoglio', e => {
   const richiesto = e.detail && e.detail.modo;
   // Per cambiare pagina passo dal menu, così anche la voce evidenziata e il titolo si aggiornano

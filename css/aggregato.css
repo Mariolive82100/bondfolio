@@ -1,0 +1,27 @@
+/* ---------- Schermata Aggregato ---------- */
+.agg-scelta { display: flex; flex-direction: column; gap: 10px; }
+.agg-voci { display: flex; flex-wrap: wrap; gap: 10px; }
+.agg-voce {
+  display: flex; align-items: center; gap: 10px; min-width: 220px; max-width: 100%;
+  padding: 10px 14px; border: 1px solid #D0D5DD; border-radius: 8px; cursor: pointer;
+}
+.agg-voce:has(input:checked) { border-color: var(--accento); background: #F2F9F7; }
+.agg-voce input { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--accento); }
+.agg-voce span { display: flex; flex-direction: column; min-width: 0; }
+.agg-voce strong { font-size: 14px; overflow-wrap: anywhere; }
+.agg-voce small { font-size: 12px; color: var(--testo-soft); }
+
+.tabella-aggregato { min-width: 980px; }
+.tabella-aggregato .riga, .tabella-aggregato .riga-testa {
+  grid-template-columns: minmax(180px, 2fr) 84px 88px 52px 82px 90px 90px 90px minmax(110px, 1.2fr);
+  column-gap: 10px;
+}
+.tabella-aggregato .agg-dove { font-size: 12px; overflow-wrap: anywhere; }
+
+@media (max-width: 820px) {
+  .agg-voci { flex-direction: column; gap: 8px; }
+  .agg-voce { min-width: 0; }
+  .tabella-aggregato { min-width: 0; }
+  .tabella-aggregato .riga > .cella-titolo { grid-column: 1 / -1; }
+  .tabella-aggregato .riga > .agg-dove { grid-column: 1 / -1; }
+}

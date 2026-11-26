@@ -5,15 +5,15 @@ import { graficoBarre, graficoBarreImpilate, graficoTorta, graficoVuoto } from '
 import { etichettaDaOrdinale } from './rating.js';
 import { fmtNum, fmtData, esc, NOMI_MESI } from './formati.js';
 import { cashflowAttuale } from './cashflow-dati.js';
-import { capitalGainPerTitolo } from './capital-gain.js';
+import { guadagniPerTitolo } from './capital-gain.js';
 import { stato } from './state.js';
 import { costruisciCalendario, prossimiDodiciMesi, unisciAnni, aggiungiStimaMensile } from './cashflow-calcoli.js';
 
 // Se c'è il calendario reale (file cashflow o voci salvate online), i grafici lo usano e per i soli titoli
 // senza dati reali aggiungono la stima, segnalandolo. Senza calendario reale è tutto stimato. Quando il file cambia, il pannello si ridisegna da solo.
-let ultimaChiamata = null; // { posizioni, dataRif, acquisti }
+let ultimaChiamata = null; // { posizioni, dataRif, gruppi }
 document.addEventListener('cashflow-aggiornato', () => {
-  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif, ultimaChiamata.acquisti);
+  if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif, ultimaChiamata.gruppi);
 });
 
 // Calendario reale per il portafoglio, oppure null (file non caricato o nessun titolo coperto).
@@ -99,8 +99,9 @@ export function htmlPannelloAnalisi() {
 }
 
 // Riempie riepilogo e grafici. dataRif = data di riferimento del file ("aaaa-mm-gg")
-// acquisti = [{ isin, nominale, prezzoCarico }]: da questi prezzi si calcola il capital gain del calendario
-export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, acquisti = []) {
+// gruppi = un elenco di acquisti [{ isin, nominale, prezzoCarico }] per ogni portafoglio:
+// da questi prezzi si calcola il capital gain del calendario
+export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, gruppi = []) {
   const set = (id, testo) => { const el = document.getElementById(id); if (el) el.textContent = testo; };
   set('t-nominale', fmtNum(tot.nominale, 0) + ' €');
   set('t-numero', String(tot.numero));
@@ -116,12 +117,12 @@ export function aggiornaPannelloAnalisi(posizioni, tot, dataRif, acquisti = []) 
   set('t-rating', etichettaDaOrdinale(ind.ratingOrdinale));
   set('t-rating-nota', ind.titoliValidi > 0 && ind.ratingConteggio < ind.titoliValidi
     ? 'su ' + ind.ratingConteggio + ' di ' + ind.titoliValidi + ' titoli con rating' : '');
-  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif, acquisti: acquisti };
-  aggiornaGrafici(posizioni, dataRif, acquisti);
+  ultimaChiamata = { posizioni: posizioni, dataRif: dataRif, gruppi: gruppi };
+  aggiornaGrafici(posizioni, dataRif, gruppi);
 }
 
 // Ridisegna i grafici (a ogni modifica dei nominali)
-function aggiornaGrafici(posizioni, dataRif, acquisti) {
+function aggiornaGrafici(posizioni, dataRif, gruppi) {
   const metti = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
   const cal = calendarioReale(posizioni, dataRif);
@@ -195,7 +196,7 @@ function aggiornaGrafici(posizioni, dataRif, acquisti) {
   // Tabella del calendario
   const notaTabella = stimati.length === 0 ? ''
     : '<div class="messaggio messaggio-avviso">In questa tabella ci sono solo i dati reali: ' + (stimati.length === 1 ? 'manca ' : 'mancano ') + nomiStimati + '. La stima è inclusa nei grafici, quindi il totale qui sotto può essere più basso.</div>';
-  metti('g-calendario', esatto ? notaTabella + htmlCalendario(cal, capitalGainPerTitolo(acquisti, stato.titoli, () => 100))
+  metti('g-calendario', esatto ? notaTabella + htmlCalendario(cal, guadagniPerTitolo(gruppi, stato.titoli, () => 100))
     : graficoVuoto(posizioni.some(p => p.valida)
       ? 'Per vedere date e importi reali carica il file dei cashflow nella schermata Dati (i grafici usano una stima).'
       : 'Nessun titolo nel portafoglio'));
@@ -225,9 +226,14 @@ function htmlCalendario(cal, guadagni) {
     const g = v.rimborso && rimborsato.get(v.isin) > 0 ? guadagni.get(v.isin) : undefined;
     let testoGain = '—';
     if (g) {
-      const importo = g.netto * v.capitale / rimborsato.get(v.isin);
-      if (importo < 0) { totaleMinus -= importo; testoGain = fmtNum(importo) + ' (minus)'; }
-      else { totaleGain += importo; testoGain = fmtNum(importo); }
+      const quota = v.capitale / rimborsato.get(v.isin);
+      const netto = g.netto * quota, minus = g.minus * quota;
+      totaleGain += netto;
+      totaleMinus += minus;
+      const parti = [];
+      if (netto > 0 || minus === 0) parti.push(fmtNum(netto));
+      if (minus > 0) parti.push(fmtNum(-minus) + ' (minus)');
+      testoGain = parti.join(' · ');
     }
     const evento = v.cedola && v.rimborso ? 'Cedola + rimborso' : v.cedola ? 'Cedola' : v.rimborso ? 'Rimborso' : 'Tasse';
     return '<tr><td class="cal-data" style="' + cella + '">' + fmtData(v.data) + '</td>'

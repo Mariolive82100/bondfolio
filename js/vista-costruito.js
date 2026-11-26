@@ -153,18 +153,23 @@ function rigaLotto(l, perIsin) {
     ${bottone}</div>`;
 }
 
-export function htmlCostruito() {
-  const perIsin = new Map(stato.titoli.map(t => [t.isin, t]));
+export function htmlRiepilogoAcquisti() {
   return `
-    <div id="avviso-costruito"></div>
-
     <div class="riepilogo riepilogo-acquisti">
       <div class="card"><div class="testo-soft">Capitale investito (prezzo medio di carico)</div><div class="valore" id="r-investito"></div><div class="testo-soft" id="r-investito-nota"></div></div>
       <div class="card"><div class="testo-soft">Valore oggi (prezzi del file)</div><div class="valore" id="r-valore"></div></div>
       <div class="card"><div class="testo-soft">Variazione latente dei prezzi</div><div class="valore" id="r-var"></div></div>
       <div class="card"><div class="testo-soft">Commissioni pagate</div><div class="valore" id="r-comm"></div><div class="testo-soft" id="r-comm-nota"></div></div>
       <div class="card"><div class="testo-soft">Rendimento netto all'acquisto (stima)</div><div class="valore" id="r-rend-comm"></div><div class="testo-soft" id="r-rend-comm-nota"></div></div>
-    </div>
+    </div>`;
+}
+
+export function htmlCostruito() {
+  const perIsin = new Map(stato.titoli.map(t => [t.isin, t]));
+  return `
+    <div id="avviso-costruito"></div>
+
+    ${htmlRiepilogoAcquisti()}
 
     ${htmlCapitalGain(['scadenza', 'oggi'], 'tuo prezzo medio di carico (i rimborsi netti nei grafici seguono invece il file cashflow, che non conosce quel prezzo)')}
 
@@ -186,13 +191,25 @@ export function htmlCostruito() {
 export function aggiornaCostruito() {
   const posizioni = risolviPosizioni(sommaPerIsin(stato.costruito), stato.titoli);
   const tot = calcolaTotali(posizioni);
-  aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento(), stato.costruito);
-  aggiornaCapitalGain(['scadenza', 'oggi'], stato.costruito, stato.titoli);
+  aggiornaPannelloAnalisi(posizioni, tot, dataRiferimento(), [stato.costruito]);
+  aggiornaCapitalGain(['scadenza', 'oggi'], [stato.costruito], stato.titoli);
 
-  const r = riepilogoAcquisti(stato.costruito, stato.titoli);
-  const ind = calcolaIndicatori(posizioni, dataRiferimento());
-
+  const r = aggiornaRiepilogoAcquisti(stato.costruito, tot);
   set('riassunto-costruito', stato.costruito.length + (stato.costruito.length === 1 ? ' acquisto' : ' acquisti') + ' · capitale investito ' + fmtNum(r.capitaleInvestito, 0) + ' €');
+
+  set('avviso-costruito', '');
+  const avviso = document.getElementById('avviso-costruito');
+  if (avviso) {
+    avviso.className = r.esclusi > 0 ? 'messaggio messaggio-avviso' : '';
+    avviso.textContent = r.esclusi === 0 ? '' : (r.esclusi === 1
+      ? '1 acquisto è escluso dai calcoli (titolo non più nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'
+      : r.esclusi + ' acquisti sono esclusi dai calcoli (titoli non più nel file, scaduti o non in euro). Puoi toglierli con la ✕.');
+  }
+}
+
+// Riempie i riquadri degli acquisti (usati dal Costruito e dall'Aggregato). tot = totali delle posizioni ai prezzi di oggi
+export function aggiornaRiepilogoAcquisti(lotti, tot) {
+  const r = riepilogoAcquisti(lotti, stato.titoli);
   set('r-investito', fmtNum(r.capitaleInvestito, 0) + ' €');
   set('r-investito-nota', 'nominale × prezzo medio di carico, commissioni comprese');
   set('r-valore', fmtNum(r.valoreOggi, 0) + ' €');
@@ -208,20 +225,12 @@ export function aggiornaCostruito() {
   set('r-comm', fmtNum(r.commissioni) + ' €');
   set('r-comm-nota', r.commissioniPct === null ? '' : fmtNum(r.commissioniPct) + '% del capitale investito');
 
-  const acq = rendimentoAcquistoPortafoglio(stato.costruito, stato.titoli, VALUTA_PORTAFOGLIO, scadutoOggi);
+  const acq = rendimentoAcquistoPortafoglio(lotti, stato.titoli, VALUTA_PORTAFOGLIO, scadutoOggi);
   set('r-rend-comm', acq.rend === null ? '—' : fmtNum(acq.rend) + '%');
   set('r-rend-comm-nota', acq.rend === null ? '' :
     'fisso, dal prezzo di carico' + (tot.rendNetto === null ? '' : ' · ai prezzi di oggi: ' + fmtNum(tot.rendNetto) + '%') +
     (acq.conteggio < acq.totale ? ' · calcolato su ' + acq.conteggio + ' di ' + acq.totale + ' acquisti' : ''));
-
-  set('avviso-costruito', '');
-  const avviso = document.getElementById('avviso-costruito');
-  if (avviso) {
-    avviso.className = r.esclusi > 0 ? 'messaggio messaggio-avviso' : '';
-    avviso.textContent = r.esclusi === 0 ? '' : (r.esclusi === 1
-      ? '1 acquisto è escluso dai calcoli (titolo non più nel file, scaduto o non in euro). Puoi toglierlo con la ✕.'
-      : r.esclusi + ' acquisti sono esclusi dai calcoli (titoli non più nel file, scaduti o non in euro). Puoi toglierli con la ✕.');
-  }
+  return r;
 }
 
 /* ---------- Impatto di nuovi acquisti (bozza) sul costruito ---------- */
