@@ -64,4 +64,73 @@
   /* ----- Grafici in una sola colonna ----- */
   .grafici { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .bozza-info { flex-wrap: wrap; }
+
+  /* ----- Tabelle: una scheda per ogni riga, senza scorrere di lato -----
+     L'etichetta di ogni valore viene dall'attributo data-eti della cella. */
+  .tabella-scroll { overflow-x: visible; }
+  .tabella, .tabella-selezione, .tabella-portafoglio, .tabella-conferma, .tabella-costruito, .tabella-impatto { min-width: 0; max-width: 100%; }
+
+  .tabella .riga {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px 8px; padding: 12px 14px; align-items: end; font-size: 14px;
+  }
+  .tabella .riga > * { grid-column: span 2; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+  .tabella .riga > [data-eti]::before {
+    content: attr(data-eti); display: block; margin-bottom: 2px;
+    font-size: 11px; font-weight: 500; color: var(--testo-soft);
+  }
+  .tabella .riga input { text-align: left; height: 42px; }
+  .tabella .riga > .cella-titolo { grid-column: 1 / 6; grid-row: 1; align-self: center; }
+  .tabella .cella-titolo strong { white-space: normal; }
+  .tabella .riga > .btn-x, .tabella .riga > .btn-piu {
+    grid-column: 6; grid-row: 1; justify-self: end; align-self: start; width: 38px; height: 38px;
+  }
+  .tabella .riga > .esclusa-motivo { grid-column: 1 / -1; }
+  .tabella .riga-testa { display: none; }
+
+  /* Selezione: le intestazioni diventano i pulsanti per ordinare */
+  .tabella-selezione .riga-testa { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; }
+  .tabella-selezione .riga-testa::before { content: 'Ordina per'; flex: 1 0 100%; }
+  .tabella-selezione .riga-testa > div:empty { display: none; }
+  .tabella-selezione .riga-testa button {
+    width: auto; min-height: 34px; padding: 4px 10px; text-align: center;
+    border: 1px solid #D0D5DD; border-radius: 8px; background: #fff;
+  }
+  .tabella-selezione .riga > [data-eti="Emittente"] { grid-column: 1 / -1; white-space: normal; }
+
+  /* Bozza: in fondo le due caselle da compilare, affiancate */
+  .tabella-portafoglio .riga > [data-eti="Nominale"] { grid-column: span 3; order: 1; }
+  .tabella-portafoglio .riga > [data-eti^="Cedola annua"] { grid-column: span 3; order: 1; }
+
+  /* Conferma acquisto e Costruito: caselle affiancate a due a due */
+  .tabella-conferma .riga > :not(.cella-titolo) { grid-column: span 3; }
+  .tabella-conferma .riga > .cella-titolo { grid-column: 1 / -1; }
+  .tabella-costruito .riga > [data-eti="Data acquisto"],
+  .tabella-costruito .riga > [data-eti="Nominale"],
+  .tabella-costruito .riga > [data-eti="Prezzo di carico"],
+  .tabella-costruito .riga > [data-eti="Commissioni (€)"] { grid-column: span 3; }
+  .tabella-costruito .riga > [data-eti="Prezzo oggi"],
+  .tabella-costruito .riga > [data-eti="Var. %"],
+  .tabella-costruito .riga > [data-eti="Valore oggi"] { order: 1; }
+
+  /* Impatto: nome dell'indicatore sopra, i tre valori sotto */
+  .tabella-impatto .riga > :first-child { grid-column: 1 / -1; font-weight: 600; }
+  .tabella-impatto .riga { padding: 10px 0; }
+
+  /* Calendario incassi */
+  .tabella-calendario, .tabella-calendario tbody { display: block; }
+  .tabella-calendario thead { display: none; }
+  .tabella-calendario tr {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px 8px;
+    padding: 10px 2px; border-bottom: 1px solid #E3E6EA; font-size: 13px;
+  }
+  .tabella-calendario td { padding: 0 !important; border: 0 !important; text-align: left !important; }
+  .tabella-calendario .cal-data { grid-column: 1 / 3; grid-row: 1; font-weight: 600; }
+  .tabella-calendario .cal-netto { grid-column: 3; grid-row: 1; text-align: right !important; font-size: 14px; }
+  .tabella-calendario .cal-titolo { grid-column: 1 / -1; grid-row: 2; }
+  .tabella-calendario .cal-evento { grid-column: 1; grid-row: 3; color: var(--testo-soft); }
+  .tabella-calendario .cal-lordo { grid-column: 2; grid-row: 3; color: var(--testo-soft); }
+  .tabella-calendario .cal-tasse { grid-column: 3; grid-row: 3; text-align: right !important; color: var(--testo-soft); }
+  .tabella-calendario .cal-lordo::before, .tabella-calendario .cal-tasse::before { content: attr(data-eti) ' '; }
+  .tabella-calendario .cal-netto::before { content: attr(data-eti) ' '; font-weight: 400; font-size: 11px; color: var(--testo-soft); }
 }

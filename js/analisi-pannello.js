@@ -216,14 +216,14 @@ function htmlCalendario(cal) {
   const righe = Array.from(mappa.values()).map(v => {
     totale += v.netto;
     const evento = v.cedola && v.rimborso ? 'Cedola + rimborso' : v.cedola ? 'Cedola' : v.rimborso ? 'Rimborso' : 'Tasse';
-    return '<tr><td style="' + cella + '">' + fmtData(v.data) + '</td>'
-      + '<td style="' + cella + 'white-space:normal;">' + esc(v.nome) + '</td>'
-      + '<td style="' + cella + '">' + evento + '</td>'
-      + '<td style="' + cella + 'text-align:right;">' + fmtNum(v.lordo) + '</td>'
-      + '<td style="' + cella + 'text-align:right;">' + fmtNum(v.tasse) + '</td>'
-      + '<td style="' + cella + 'text-align:right;font-weight:600;">' + fmtNum(v.netto) + '</td></tr>';
+    return '<tr><td class="cal-data" style="' + cella + '">' + fmtData(v.data) + '</td>'
+      + '<td class="cal-titolo" style="' + cella + 'white-space:normal;">' + esc(v.nome) + '</td>'
+      + '<td class="cal-evento" style="' + cella + '">' + evento + '</td>'
+      + '<td class="cal-lordo" data-eti="Lordo" style="' + cella + 'text-align:right;">' + fmtNum(v.lordo) + '</td>'
+      + '<td class="cal-tasse" data-eti="Tasse" style="' + cella + 'text-align:right;">' + fmtNum(v.tasse) + '</td>'
+      + '<td class="cal-netto" data-eti="Netto €" style="' + cella + 'text-align:right;font-weight:600;">' + fmtNum(v.netto) + '</td></tr>';
   });
-  return '<div style="max-height:420px;overflow:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">'
+  return '<div style="max-height:420px;overflow:auto;"><table class="tabella-calendario" style="width:100%;border-collapse:collapse;font-size:12px;">'
     + '<thead><tr><th style="' + testa + '">Data</th><th style="' + testa + '">Titolo</th><th style="' + testa + '">Evento</th>'
     + '<th style="' + testa + 'text-align:right;">Lordo €</th><th style="' + testa + 'text-align:right;">Tasse €</th><th style="' + testa + 'text-align:right;">Netto €</th></tr></thead>'
     + '<tbody>' + righe.join('') + '</tbody></table></div>'

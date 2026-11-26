@@ -40,11 +40,11 @@ export function htmlConferma() {
   const righe = posizioni.map(p => `
     <div class="riga" data-isin="${esc(p.isin)}" data-nominale="${p.nominale}">
       <div class="cella-titolo"><strong title="${esc(p.titolo.nome)}">${esc(p.titolo.nome)}</strong><small>${esc(p.isin)}</small></div>
-      <div class="num">${fmtNum(p.nominale, 0)}</div>
-      <div class="num"><input class="input-conferma in-carico" type="text" inputmode="decimal" value="${fmtNum(p.titolo.prezzo, 3)}" aria-label="Prezzo medio di carico"></div>
-      <div><input class="input-conferma in-data" type="date" value="${oggi}" aria-label="Data di acquisto"></div>
-      <div class="num"><input class="input-conferma in-comm" type="text" inputmode="decimal" value="0,00" aria-label="Commissioni in euro"></div>
-      <div class="num" data-costo>—</div>
+      <div class="num" data-eti="Nominale">${fmtNum(p.nominale, 0)}</div>
+      <div class="num" data-eti="Prezzo medio di carico"><input class="input-conferma in-carico" type="text" inputmode="decimal" value="${fmtNum(p.titolo.prezzo, 3)}" aria-label="Prezzo medio di carico"></div>
+      <div data-eti="Data acquisto"><input class="input-conferma in-data" type="date" value="${oggi}" aria-label="Data di acquisto"></div>
+      <div class="num" data-eti="Commissioni (€, facolt.)"><input class="input-conferma in-comm" type="text" inputmode="decimal" value="0,00" aria-label="Commissioni in euro"></div>
+      <div class="num" data-eti="Costo (€)" data-costo>—</div>
     </div>`).join('');
 
   return `
@@ -142,13 +142,13 @@ function rigaLotto(l, perIsin) {
   const classe = variazione === null ? '' : variazione >= 0 ? 'pos' : 'neg';
   return `<div class="riga" data-id="${esc(l.id)}">
     <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
-    <div><input class="input-conferma mod-data" type="date" value="${esc(l.data || '')}" aria-label="Data di acquisto"></div>
-    <div class="num">${fmtNum(l.nominale, 0)}</div>
-    <div class="num"><input class="input-conferma mod-carico" type="text" inputmode="decimal" value="${fmtNum(l.prezzoCarico, 3)}" aria-label="Prezzo medio di carico"></div>
-    <div class="num">${fmtNum(t.prezzo)}</div>
-    <div class="num ${classe}" data-var>${variazione === null ? '—' : segno(variazione) + fmtNum(Math.abs(variazione)) + '%'}</div>
-    <div class="num">${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
-    <div class="num"><input class="input-conferma mod-comm" type="text" inputmode="decimal" value="${fmtNum(l.commissioni || 0)}" aria-label="Commissioni in euro"></div>
+    <div data-eti="Data acquisto"><input class="input-conferma mod-data" type="date" value="${esc(l.data || '')}" aria-label="Data di acquisto"></div>
+    <div class="num" data-eti="Nominale">${fmtNum(l.nominale, 0)}</div>
+    <div class="num" data-eti="Prezzo di carico"><input class="input-conferma mod-carico" type="text" inputmode="decimal" value="${fmtNum(l.prezzoCarico, 3)}" aria-label="Prezzo medio di carico"></div>
+    <div class="num" data-eti="Prezzo oggi">${fmtNum(t.prezzo)}</div>
+    <div class="num ${classe}" data-eti="Var. %" data-var>${variazione === null ? '—' : segno(variazione) + fmtNum(Math.abs(variazione)) + '%'}</div>
+    <div class="num" data-eti="Valore oggi">${fmtNum(l.nominale * t.prezzo / 100, 0)}</div>
+    <div class="num" data-eti="Commissioni (€)"><input class="input-conferma mod-comm" type="text" inputmode="decimal" value="${fmtNum(l.commissioni || 0)}" aria-label="Commissioni in euro"></div>
     ${bottone}</div>`;
 }
 
@@ -258,9 +258,9 @@ export function aggiornaImpatto() {
     }
     return `<div class="riga">
       <div>${esc(m.nome)}</div>
-      <div class="num">${a === null ? '—' : m.fmt(a)}</div>
-      <div class="num forte">${b === null ? '—' : m.fmt(b)}</div>
-      <div class="num">${diff}</div></div>`;
+      <div class="num" data-eti="Prima">${a === null ? '—' : m.fmt(a)}</div>
+      <div class="num forte" data-eti="Dopo">${b === null ? '—' : m.fmt(b)}</div>
+      <div class="num" data-eti="Differenza">${diff}</div></div>`;
   }).join('');
 
   box.innerHTML = `<section class="card impatto">

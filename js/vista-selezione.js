@@ -167,14 +167,14 @@ function riga(t, inBozza) {
         <strong title="${esc(t.nome)}">${esc(t.nome)}</strong>
         <small>${esc(t.isin)} · ${esc(t.valuta)}</small>
       </div>
-      <div class="ellissi" title="${esc(t.emittente)}">${esc(t.emittente)}</div>
-      <div>${fmtData(t.scadenza)}</div>
-      <div class="num forte">${fmtNum(cedolaNetta(t))}%</div>
-      <div class="num"><span class="pill ${aliquota(t) < 20 ? 'pill-ok' : 'pill-medio'}">${String(aliquota(t)).replace('.', ',')}%</span></div>
-      <div class="num">${fmtNum(t.prezzo)}</div>
-      <div class="num forte">${fmtNum(t.rendNetto)}%</div>
-      <div class="num">${fmtNum(t.durationLorda, 1)}</div>
-      <div>${rating}</div>
+      <div class="ellissi" data-eti="Emittente" title="${esc(t.emittente)}">${esc(t.emittente)}</div>
+      <div data-eti="Scadenza">${fmtData(t.scadenza)}</div>
+      <div class="num forte" data-eti="Cedola netta">${fmtNum(cedolaNetta(t))}%</div>
+      <div class="num" data-eti="Aliquota"><span class="pill ${aliquota(t) < 20 ? 'pill-ok' : 'pill-medio'}">${String(aliquota(t)).replace('.', ',')}%</span></div>
+      <div class="num" data-eti="Prezzo">${fmtNum(t.prezzo)}</div>
+      <div class="num forte" data-eti="Rend. netto">${fmtNum(t.rendNetto)}%</div>
+      <div class="num" data-eti="Duration">${fmtNum(t.durationLorda, 1)}</div>
+      <div data-eti="Rating">${rating}</div>
       ${bottonePiu(t, inBozza)}
     </div>`;
 }
@@ -214,6 +214,7 @@ function aggiornaTabella() {
      ${stato.bozza.length > 0 ? '<button class="link-btn" data-azione="svuota">Svuota</button>' : ''}
      <button class="btn btn-secondario btn-piccolo" data-azione="vai-portafoglio">Vai alla bozza</button>`;
 
+  contenitore.classList.add('tabella-selezione');
   contenitore.innerHTML = intestazione() +
     (mostrati.length === 0
       ? '<div class="vuoto">Nessun titolo corrisponde ai filtri.</div>'

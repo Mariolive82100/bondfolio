@@ -31,17 +31,17 @@ function riga(p) {
   return `
     <div class="riga">
       <div class="cella-titolo"><strong title="${esc(nome)}">${esc(nome)}</strong><small>${sotto}</small></div>
-      <div>${fmtData(t.scadenza)}</div>
-      <div class="num">${fmtNum(cedolaNetta(t))}%</div>
-      <div class="num">${fmtNum(t.prezzo)}</div>
-      <div class="num">${fmtNum(t.rendLordo)}%</div>
-      <div class="num forte">${fmtNum(t.rendNetto)}%</div>
-      <div class="num">${fmtNum(t.durationLorda, 1)}</div>
-      <div class="num">${fmtNum(t.lottoMinimo, 0)}</div>
-      <div class="num"><input class="input-nominale" type="text" inputmode="numeric"
+      <div data-eti="Scadenza">${fmtData(t.scadenza)}</div>
+      <div class="num" data-eti="Cedola netta">${fmtNum(cedolaNetta(t))}%</div>
+      <div class="num" data-eti="Prezzo">${fmtNum(t.prezzo)}</div>
+      <div class="num" data-eti="Rend. lordo">${fmtNum(t.rendLordo)}%</div>
+      <div class="num forte" data-eti="Rend. netto">${fmtNum(t.rendNetto)}%</div>
+      <div class="num" data-eti="Duration">${fmtNum(t.durationLorda, 1)}</div>
+      <div class="num" data-eti="Lotto min.">${fmtNum(t.lottoMinimo, 0)}</div>
+      <div class="num" data-eti="Nominale"><input class="input-nominale" type="text" inputmode="numeric"
         data-isin="${esc(p.isin)}" value="${fmtNum(p.nominale, 0)}" aria-label="Nominale"></div>
-      <div class="num" data-peso="${esc(p.isin)}"></div>
-      <div class="num">${cedolaNetta(t) > 0
+      <div class="num" data-eti="Peso" data-peso="${esc(p.isin)}"></div>
+      <div class="num" data-eti="Cedola annua netta (€)">${cedolaNetta(t) > 0
         ? `<input class="input-nominale input-cedola" type="text" inputmode="decimal"
             data-isin="${esc(p.isin)}" value="${fmtNum(p.cedolaAnnuaNetta)}" aria-label="Cedola annua netta in euro">`
         : '<span class="testo-soft">—</span>'}</div>
