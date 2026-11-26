@@ -1,0 +1,75 @@
+/* ---------- Report PDF ----------
+   La pagina del report non si vede a schermo: compare solo nella stampa avviata dal pulsante "Report PDF". */
+#report { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+
+  body.stampa-report { background: #fff; padding: 0 !important; }
+  body.stampa-report > .app { display: none !important; }
+  body.stampa-report #report { display: block; font-size: 11px; }
+  #report, #report * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .report-testata {
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
+    padding-bottom: 8px; border-bottom: 2px solid var(--accento);
+  }
+  .report-testata h1 { font-size: 18px; overflow-wrap: anywhere; }
+  .report-testata p { color: var(--testo-soft); }
+  .report-marchio { font-size: 14px; font-weight: 700; color: var(--accento); }
+  #report h2 { margin: 12px 0 6px; font-size: 13px; break-after: avoid; }
+  #report h2.report-pagina-nuova { break-before: page; margin-top: 0; }
+  #report .card { padding: 8px 10px; border-radius: 6px; box-shadow: none; }
+  #report .card-titolo { font-size: 12px; }
+  #report .testo-soft { font-size: 10px; }
+
+  /* Riquadri dei numeri: cinque per riga */
+  #report .riepilogo { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; break-inside: avoid; }
+  #report .riepilogo .card { gap: 2px; break-inside: avoid; }
+  #report .riepilogo .valore { font-size: 15px; }
+  #report .riepilogo.riepilogo-gain { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
+  #report .riepilogo-blocco { gap: 3px; break-inside: avoid; }
+
+  /* Tabelle: l'intestazione si ripete su ogni pagina e le righe non si spezzano */
+  .report-tabella { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .report-tabella th { text-align: left; vertical-align: bottom; padding: 4px; border-bottom: 1px solid #8A94A3; }
+  .report-tabella td { padding: 4px; border-bottom: 1px solid #E3E6EA; vertical-align: top; }
+  .report-tabella .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .report-tabella strong, .report-tabella small { display: block; }
+  .report-tabella small { color: var(--testo-soft); font-size: 9px; }
+  .report-tabella tr { break-inside: avoid; }
+  .report-totale td { font-weight: 700; border-top: 1px solid #8A94A3; }
+
+  #report .impatto { margin-top: 12px; break-inside: avoid; }
+  #report .tabella-impatto { min-width: 0; }
+  #report .tabella-impatto .riga { padding-top: 3px; padding-bottom: 3px; }
+
+  /* Grafici: quattro affiancati, righe sottili perché anche le scadenze lontane stiano in pagina */
+  #report .grafici { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+  #report .grafici .card { break-inside: avoid; }
+  #report .barre { gap: 0; }
+  #report .barra-riga { height: 9.8px; line-height: 1; grid-template-columns: 38px minmax(0, 1fr) 36px; gap: 5px; }
+  #report .barra-area { height: 7px; }
+  #report .barra-etichetta, #report .barra-valore { font-size: 9px; }
+  #report .nota-grafico, #report .leg-righe { font-size: 9px; line-height: 1.25; }
+  #report .nota-grafico { padding-top: 5px; }
+  #report .leg-righe { margin-top: 5px; }
+  #report .grafici .testo-soft { margin-bottom: 3px; min-height: 0; }
+  #report .torta { flex-direction: column; gap: 8px; }
+  #report .torta-disegno { width: 140px; height: 140px; }
+  #report .torta-centro { padding: 0 30px; }
+  #report .torta-centro strong { font-size: 11px; white-space: nowrap; }
+  #report .torta-centro span { font-size: 8px; }
+  #report .torta-legenda { flex: 0 0 auto; width: 100%; min-width: 0; gap: 0; }
+  #report .torta-legenda li { font-size: 10px; padding: 1px 0; }
+  #report .torta-nome { white-space: normal; overflow-wrap: anywhere; }
+
+  /* Calendario: tutte le righe, senza riquadro che scorre */
+  .report-calendario div[style] { max-height: none !important; overflow: visible !important; }
+  .report-calendario th { position: static !important; }
+  .report-calendario tr { break-inside: avoid; }
+  .report-calendario td { padding-top: 3px !important; padding-bottom: 3px !important; font-size: 10px; }
+
+  .report-nota { color: var(--testo-soft); font-size: 10px; }
+  .report-avvertenza { margin-top: 10px; }
+}

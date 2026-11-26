@@ -5,7 +5,7 @@
 /* Il pulsante che apre i filtri esiste solo sul telefono */
 .btn-filtri { display: none; }
 
-@media (max-width: 820px) {
+@media screen and (max-width: 820px) {
 
   /* ----- Struttura: il nome in alto, il menu in basso ----- */
   .app { flex-direction: column; }

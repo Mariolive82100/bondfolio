@@ -7,6 +7,7 @@ import { htmlCostruito, aggiornaCostruito, htmlConferma, aggiornaConferma, aggio
 import { cedolaNetta } from './filtri.js';
 import { htmlCapitalGain, aggiornaCapitalGain } from './capital-gain.js';
 import { htmlAggregato, aggiornaAggregato } from './vista-aggregato.js';
+import './report.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData, leggiDecimale } from './formati.js';
 import { dataCalcolo, dataFile, giorniFileVecchio } from './data-calcolo.js';
@@ -63,9 +64,11 @@ function disegna() {
   }
   const bottoni = modo === 'bozza' && stato.bozza.length > 0 && !inConferma() ? `
           <button class="btn btn-primario" data-azione="conferma-apri">Conferma acquisto</button>
+          <button class="btn btn-secondario" data-report="bozza">Report PDF</button>
           <button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>`
     : modo === 'costruito' && stato.costruito.length > 0 ? `
           <button class="btn btn-secondario" data-azione="vai-selezione">Aggiungi altri acquisti</button>
+          <button class="btn btn-secondario" data-report="costruito">Report PDF</button>
           <button class="btn btn-secondario" data-azione="svuota-costruito">Svuota portafoglio</button>` : '';
   const intestazioneModo = `${bottoni ? `
     <div class="card portafoglio-testa">
