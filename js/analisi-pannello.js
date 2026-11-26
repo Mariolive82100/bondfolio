@@ -5,10 +5,10 @@ import { graficoBarre, graficoBarreImpilate, graficoTorta, graficoVuoto } from '
 import { etichettaDaOrdinale } from './rating.js';
 import { fmtNum, fmtData, esc, NOMI_MESI } from './formati.js';
 import { cashflowAttuale } from './cashflow-dati.js';
-import { costruisciCalendario, prossimiDodiciMesi } from './cashflow-calcoli.js';
+import { costruisciCalendario, prossimiDodiciMesi, unisciAnni, aggiungiStimaMensile } from './cashflow-calcoli.js';
 
-// Se il calendario reale (file cashflow) è stato caricato nella schermata Dati, i grafici lo usano;
-// altrimenti restano le stime di prima. Quando il file cambia, il pannello si ridisegna da solo.
+// Se c'è il calendario reale (file cashflow o voci salvate online), i grafici lo usano e per i soli titoli
+// senza dati reali aggiungono la stima, segnalandolo. Senza calendario reale è tutto stimato. Quando il file cambia, il pannello si ridisegna da solo.
 let ultimaChiamata = null; // { posizioni, dataRif }
 document.addEventListener('cashflow-aggiornato', () => {
   if (ultimaChiamata) aggiornaGrafici(ultimaChiamata.posizioni, ultimaChiamata.dataRif);
@@ -123,7 +123,12 @@ function aggiornaGrafici(posizioni, dataRif) {
 
   const cal = calendarioReale(posizioni, dataRif);
   const esatto = cal !== null;
-  const flusso = esatto ? cal.perAnno : flussoAnnuo(posizioni, dataRif);
+  const stimati = esatto ? cal.senzaDati : [];
+  const nomiStimati = stimati.map(p => esc(p.titolo.nome)).join(', ');
+  const quantiStimati = stimati.length === 1 ? '1 titolo' : stimati.length + ' titoli';
+  const origine = stimati.length === 0 ? 'calendario reale'
+    : 'calendario reale + <strong>stima per ' + quantiStimati + ' senza dati</strong> (' + nomiStimati + ')';
+  const flusso = esatto ? unisciAnni(cal.perAnno, flussoAnnuo(stimati, dataRif)) : flussoAnnuo(posizioni, dataRif);
   metti('g-flusso', flusso.length === 0 ? graficoVuoto('Nessun dato') : graficoBarreImpilate(flusso.map(x => ({
     etichetta: String(x.anno),
     parti: [x.cedole, x.rimborsi],
@@ -136,11 +141,9 @@ function aggiornaGrafici(posizioni, dataRif) {
     titolo: x.anno + ': ' + fmtNum(x.cedole) + ' € di cedole nette'
   }))));
   const totCedole = flusso.reduce((s, x) => s + x.cedole, 0), totRimborsi = flusso.reduce((s, x) => s + x.rimborsi, 0);
-  const senza = esatto ? cal.titoliSenzaDati : 0;
-  const notaSenzaDati = senza > 0
-    ? ' · ' + senza + (senza === 1 ? ' titolo non è presente nel file dei cashflow e non è conteggiato' : ' titoli non sono presenti nel file dei cashflow e non sono conteggiati') : '';
   metti('g-flusso-nota', flusso.length === 0 ? '' : esatto
-    ? 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi (al netto di tasse su capital gain e disaggio) = ' + fmtNum(totCedole + totRimborsi, 0) + ' € · calendario reale' + notaSenzaDati
+    ? 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € · ' + origine
+      + ' · per i dati reali i rimborsi sono al netto delle tasse su capital gain e disaggio' + (stimati.length > 0 ? '; per la stima il rimborso è al 100%, senza quelle tasse' : '')
     : 'Fino alla scadenza: ' + fmtNum(totCedole, 0) + ' € di cedole nette + ' + fmtNum(totRimborsi, 0) + ' € di rimborsi = ' + fmtNum(totCedole + totRimborsi, 0) + ' € (stima: rimborso al 100%, cedole dai mesi ancora da pagare)');
 
   const scadenze = scalettaScadenze(posizioni);
@@ -162,14 +165,17 @@ function aggiornaGrafici(posizioni, dataRif) {
   metti('g-rating', torta(pesoPerRating(posizioni)));
 
   if (esatto) {
-    const dodici = prossimiDodiciMesi(cal, dataRif);
+    const stima = aggiungiStimaMensile(prossimiDodiciMesi(cal, dataRif), stimati, dataRif);
+    const dodici = stima.mesi;
+    const notaSenzaMesi = stima.nonCollocati === 0 ? ''
+      : ' · ' + (stima.nonCollocati === 1 ? '1 titolo senza mesi di pagamento non è conteggiato' : stima.nonCollocati + ' titoli senza mesi di pagamento non sono conteggiati') + ' in questo grafico';
     const totale12 = dodici.reduce((s, x) => s + x.cedole, 0);
     metti('g-cedole', totale12 === 0 ? graficoVuoto('Nessuna cedola nei prossimi 12 mesi') : graficoBarre(dodici.map(x => ({
       etichetta: NOMI_MESI[x.mese - 1] + ' ' + String(x.anno).slice(2),
       valore: x.cedole,
       titolo: NOMI_MESI[x.mese - 1] + ' ' + x.anno + ': ' + fmtNum(x.cedole) + ' € netti'
     }))));
-    metti('g-cedole-nota', totale12 === 0 ? '' : 'Prossimi 12 mesi: ' + fmtNum(totale12, 0) + ' € · media ' + fmtNum(totale12 / 12, 0) + ' € al mese · calendario reale');
+    metti('g-cedole-nota', (totale12 === 0 ? 'Nessun importo nei 12 mesi' : 'Prossimi 12 mesi: ' + fmtNum(totale12, 0) + ' € · media ' + fmtNum(totale12 / 12, 0) + ' € al mese') + ' · ' + origine + notaSenzaMesi);
   } else {
     const incassi = incassiMensili(posizioni);
     const totaleCedole = incassi.mesi.reduce((s, x) => s + x, 0);
@@ -184,7 +190,9 @@ function aggiornaGrafici(posizioni, dataRif) {
   }
 
   // Tabella del calendario
-  metti('g-calendario', esatto ? htmlCalendario(cal)
+  const notaTabella = stimati.length === 0 ? ''
+    : '<div class="messaggio messaggio-avviso">In questa tabella ci sono solo i dati reali: ' + (stimati.length === 1 ? 'manca ' : 'mancano ') + nomiStimati + '. La stima è inclusa nei grafici, quindi il totale qui sotto può essere più basso.</div>';
+  metti('g-calendario', esatto ? notaTabella + htmlCalendario(cal)
     : graficoVuoto(posizioni.some(p => p.valida)
       ? 'Per vedere date e importi reali carica il file dei cashflow nella schermata Dati (i grafici usano una stima).'
       : 'Nessun titolo nel portafoglio'));
