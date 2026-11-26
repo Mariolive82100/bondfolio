@@ -1,4 +1,4 @@
-// Schermata 3: portafoglio (bozza e portafoglio costruito)
+// Schermate 3 e 4: Bozza e Portafoglio costruito (due voci del menu, stessa area della pagina)
 
 import { stato, impostaBozza } from './state.js';
 import { risolviPosizioni, calcolaTotali, peso, lottoMinimo, nominaleDaCedolaNetta } from './portafoglio-calcoli.js';
@@ -54,21 +54,17 @@ function disegna() {
   const avvisoFile = giorniVecchio > 7
     ? `<div class="messaggio messaggio-avviso">I prezzi del file sono del ${fmtData(dataFile())} (${giorniVecchio} giorni fa): prezzi e rendimenti sono quelli di quel giorno. Flussi di cassa, scadenza media, durata e titoli scaduti sono invece aggiornati a oggi. Per prezzi aggiornati carica un nuovo file nella schermata Dati.</div>`
     : '';
-  const intestazioneModo = `
-    <div class="card portafoglio-testa">
-      <div class="interruttore">
-        <button class="${modo === 'bozza' ? 'is-attivo' : ''}" data-azione="modo-bozza">Bozza</button>
-        <button class="${modo === 'costruito' ? 'is-attivo' : ''}" data-azione="modo-costruito">Costruito</button>
-      </div>
-      <div class="gruppo-bottoni">
-        ${modo === 'bozza' && stato.bozza.length > 0 && !inConferma() ? `
+  const bottoni = modo === 'bozza' && stato.bozza.length > 0 && !inConferma() ? `
           <button class="btn btn-primario" data-azione="conferma-apri">Conferma acquisto</button>
-          <button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>` : ''}
-        ${modo === 'costruito' && stato.costruito.length > 0 ? `
+          <button class="btn btn-secondario" data-azione="svuota">Svuota bozza</button>`
+    : modo === 'costruito' && stato.costruito.length > 0 ? `
           <button class="btn btn-secondario" data-azione="vai-selezione">Aggiungi altri acquisti</button>
-          <button class="btn btn-secondario" data-azione="svuota-costruito">Svuota portafoglio</button>` : ''}
+          <button class="btn btn-secondario" data-azione="svuota-costruito">Svuota portafoglio</button>` : '';
+  const intestazioneModo = `${bottoni ? `
+    <div class="card portafoglio-testa">
+      <div class="gruppo-bottoni">${bottoni}
       </div>
-    </div>${avvisoFile}`;
+    </div>` : ''}${avvisoFile}`;
 
   if (modo === 'costruito') {
     if (stato.costruito.length === 0) {
@@ -76,7 +72,7 @@ function disegna() {
         <div class="card vuoto">
           <p>Non c'è ancora nessun portafoglio costruito.</p>
           <p>Prepara una bozza nella schermata Selezione e premi «Conferma acquisto».</p>
-          <button class="btn btn-primario" data-azione="modo-bozza">Vai alla bozza</button>
+          <button class="btn btn-primario" data-azione="vai-bozza">Vai alla bozza</button>
         </div></div>`;
       return;
     }
@@ -215,8 +211,7 @@ radice.addEventListener('click', e => {
   const vai = nome => document.dispatchEvent(new CustomEvent('vai-a', { detail: nome }));
 
   switch (el.dataset.azione) {
-    case 'modo-bozza': modo = 'bozza'; disegna(); break;
-    case 'modo-costruito': modo = 'costruito'; annullaConferma(); disegna(); break;
+    case 'vai-bozza': vai('bozza'); break;
     case 'svuota':
       if (stato.bozza.length > 0 && confirm('Togliere tutti i ' + stato.bozza.length + ' titoli dalla bozza?')) {
         impostaBozza([]);
@@ -231,7 +226,15 @@ radice.addEventListener('click', e => {
 document.addEventListener('dati-aggiornati', disegna);
 document.addEventListener('costruito-aggiornato', disegna);
 document.addEventListener('ridisegna-portafoglio', e => {
-  if (e.detail && e.detail.modo) modo = e.detail.modo;
+  const richiesto = e.detail && e.detail.modo;
+  // Per cambiare pagina passo dal menu, così anche la voce evidenziata e il titolo si aggiornano
+  if (richiesto && richiesto !== modo) document.dispatchEvent(new CustomEvent('vai-a', { detail: richiesto }));
+  else disegna();
+});
+// Scelta di «Bozza» o «Costruito» dal menu
+document.addEventListener('mostra-portafoglio', e => {
+  modo = e.detail;
+  if (modo === 'costruito') annullaConferma();
   disegna();
 });
 document.addEventListener('bozza-aggiornata', () => { if (!aggiornandoDaQui) disegna(); });

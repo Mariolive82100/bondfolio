@@ -209,7 +209,7 @@ function aggiornaTabella() {
   document.getElementById('bozza-info').innerHTML =
     `<span class="testo-soft">Nel portafoglio: <strong>${stato.bozza.length}</strong></span>
      ${stato.bozza.length > 0 ? '<button class="link-btn" data-azione="svuota">Svuota</button>' : ''}
-     <button class="btn btn-secondario btn-piccolo" data-azione="vai-portafoglio">Vai al portafoglio</button>`;
+     <button class="btn btn-secondario btn-piccolo" data-azione="vai-portafoglio">Vai alla bozza</button>`;
 
   contenitore.innerHTML = intestazione() +
     (mostrati.length === 0
@@ -300,7 +300,7 @@ radice.addEventListener('click', e => {
       document.dispatchEvent(new CustomEvent('vai-a', { detail: 'dati' }));
       break;
     case 'vai-portafoglio':
-      document.dispatchEvent(new CustomEvent('vai-a', { detail: 'portafoglio' }));
+      document.dispatchEvent(new CustomEvent('vai-a', { detail: 'bozza' }));
       break;
   }
 });

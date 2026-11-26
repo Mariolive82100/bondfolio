@@ -1,4 +1,4 @@
-// Gestione della navigazione tra le 3 schermate
+// Gestione della navigazione tra le 4 schermate
 
 import { VERSIONE } from './versione.js';
 import './vista-dati.js';
@@ -9,7 +9,8 @@ import './vista-account.js';
 const TESTI = {
   dati: ['Dati', "Carica l'elenco delle obbligazioni scaricato da Simple Tools for Investors"],
   selezione: ['Selezione', 'Filtra le obbligazioni e aggiungile al portafoglio'],
-  portafoglio: ['Portafoglio e analisi', 'Modifica i nominali e guarda subito rendimento, duration, cedole e diversificazione']
+  bozza: ['Bozza', 'Simula il portafoglio: modifica i nominali e guarda subito rendimento, duration, cedole e diversificazione'],
+  costruito: ['Portafoglio costruito', 'I tuoi acquisti confermati e la loro analisi']
 };
 
 const voci = document.querySelectorAll('.nav-item');
@@ -21,7 +22,11 @@ document.getElementById('versione').textContent = 'v' + VERSIONE;
 
 function mostra(nome) {
   voci.forEach(v => v.classList.toggle('is-active', v.dataset.view === nome));
-  viste.forEach(v => { v.hidden = (v.id !== 'view-' + nome); });
+  // Bozza e Costruito usano la stessa area: cambia solo il contenuto
+  const diPortafoglio = nome === 'bozza' || nome === 'costruito';
+  const area = diPortafoglio ? 'portafoglio' : nome;
+  viste.forEach(v => { v.hidden = (v.id !== 'view-' + area); });
+  if (diPortafoglio) document.dispatchEvent(new CustomEvent('mostra-portafoglio', { detail: nome }));
   titolo.textContent = TESTI[nome][0];
   sottotitolo.textContent = TESTI[nome][1];
 }
