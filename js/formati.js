@@ -10,6 +10,7 @@ export function esc(testo) {
 export function fmtNum(n, decimali = 2) {
   if (n === null || n === undefined) return '—';
   return n.toLocaleString('it-IT', {
+    useGrouping: 'always', // punto delle migliaia anche sotto 10.000 (di norma l'italiano non lo mette a 4 cifre)
     minimumFractionDigits: decimali,
     maximumFractionDigits: decimali
   });

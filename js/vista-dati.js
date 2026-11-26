@@ -1,5 +1,6 @@
 // Schermata 1: caricamento del file con l'elenco delle obbligazioni
 
+import { fmtNum } from './formati.js';
 import { stato, impostaDati } from './state.js';
 import { leggiElenco, nomePortafoglio, tuttiGliIsin } from './portafogli.js';
 import { leggiCsv } from './csv-loader.js';
@@ -50,7 +51,7 @@ function disegna() {
   if (m) {
     const valute = Object.keys(m.valute)
       .sort((a, b) => m.valute[b] - m.valute[a])
-      .map(v => `<span class="chip">${esc(v)} <strong>${m.valute[v].toLocaleString('it-IT')}</strong></span>`)
+      .map(v => `<span class="chip">${esc(v)} <strong>${fmtNum(m.valute[v], 0)}</strong></span>`)
       .join('');
 
     html += `
@@ -58,7 +59,7 @@ function disegna() {
         <div class="card card-flex">
           <div class="card-titolo">File caricato</div>
           <div>${esc(m.nomeFile)}</div>
-          <div class="testo-soft">${m.righe.toLocaleString('it-IT')} titoli · prezzi del ${formatoData(m.dataRiferimento)}</div>
+          <div class="testo-soft">${fmtNum(m.righe, 0)} titoli · prezzi del ${formatoData(m.dataRiferimento)}</div>
           <div class="testo-soft">Caricato il ${formatoDataOra(m.caricatoIl)}. Resta salvato nel browser: non serve ricaricarlo a ogni apertura.</div>
           <div class="gruppo-bottoni">
             <button class="btn btn-primario" id="btn-vai">Vai alla selezione</button>
@@ -81,7 +82,7 @@ function disegna() {
     const soloOnline = salvati.filter(isin => inPortafoglio.has(isin) && !cf.perIsin.has(isin)).length;
     corpoCashflow = `
       <div>${esc(cf.nomeFile)}</div>
-      <div class="testo-soft">${cf.perIsin.size.toLocaleString('it-IT')} titoli · calendario calcolato dal ${formatoData(cf.dataAcquisto)}. Caricato il ${formatoDataOra(cf.caricatoIl)}.</div>
+      <div class="testo-soft">${fmtNum(cf.perIsin.size, 0)} titoli · calendario calcolato dal ${formatoData(cf.dataAcquisto)}. Caricato il ${formatoDataOra(cf.caricatoIl)}.</div>
       ${giorniVecchio > 7 ? '<div class="messaggio messaggio-avviso">Il file ha più di una settimana: le cedole già incassate vengono escluse, ma conviene riscaricarlo.</div>' : ''}
       ${soloOnline > 0 ? `<div class="messaggio messaggio-avviso">${soloOnline === 1 ? '1 titolo del portafoglio non è nel file: uso le voci salvate online.' : soloOnline + ' titoli del portafoglio non sono nel file: uso le voci salvate online.'}</div>` : ''}
       <div class="gruppo-bottoni">
@@ -230,7 +231,7 @@ async function leggiFileCashflow(file) {
     const risultato = leggiCashflow(await file.text());
     const salvato = impostaCashflow(risultato, file.name);
     messaggioCashflow = salvato
-      ? { tipo: 'ok', testo: 'Calendario caricato: ' + risultato.perIsin.size.toLocaleString('it-IT') + ' titoli.' }
+      ? { tipo: 'ok', testo: 'Calendario caricato: ' + fmtNum(risultato.perIsin.size, 0) + ' titoli.' }
       : { tipo: 'avviso', testo: 'File letto, ma non è stato possibile salvarlo nel browser: dovrai ricaricarlo alla prossima apertura.' };
   } catch (errore) {
     messaggioCashflow = { tipo: 'errore', testo: errore.message };

@@ -207,7 +207,7 @@ function aggiornaTabella() {
   const inBozza = new Set(stato.bozza.map(b => b.isin));
 
   document.getElementById('conteggio').innerHTML =
-    `<strong>${filtrati.length.toLocaleString('it-IT')}</strong> titoli su ${stato.titoli.length.toLocaleString('it-IT')}`;
+    `<strong>${fmtNum(filtrati.length, 0)}</strong> titoli su ${fmtNum(stato.titoli.length, 0)}`;
 
   document.getElementById('bozza-info').innerHTML =
     `<span class="testo-soft">Nel portafoglio: <strong>${stato.bozza.length}</strong></span>
@@ -222,7 +222,7 @@ function aggiornaTabella() {
 
   const restanti = filtrati.length - mostrati.length;
   document.getElementById('piede').innerHTML = restanti > 0
-    ? `<button class="btn btn-secondario" data-azione="altri">Mostra altri ${Math.min(PASSO, restanti)} (ne restano ${restanti.toLocaleString('it-IT')})</button>`
+    ? `<button class="btn btn-secondario" data-azione="altri">Mostra altri ${Math.min(PASSO, restanti)} (ne restano ${fmtNum(restanti, 0)})</button>`
     : '';
 }
 
