@@ -223,15 +223,20 @@ export function aggiornaCostruito() {
 /* ---------- Impatto di nuovi acquisti (bozza) sul costruito ---------- */
 
 const RIGHE_IMPATTO = [
-  { nome: 'Nominale totale', val: (t) => t.nominale, fmt: n => fmtNum(n, 0) + ' €' },
-  { nome: 'Capitale impiegato (stima)', val: (t) => t.controvalore, fmt: n => fmtNum(n, 0) + ' €' },
-  { nome: 'Cedole annue nette', val: (t) => t.cedoleNette, fmt: n => fmtNum(n) + ' €' },
-  { nome: 'Rendimento netto', val: (t) => t.rendNetto, fmt: n => fmtNum(n) + '%', diff: n => fmtNum(n) + ' pt' },
-  { nome: 'Duration', val: (t) => t.duration, fmt: n => fmtNum(n, 1) + ' anni' },
-  { nome: 'Scadenza media', val: (t, i) => i.scadenzaAnni, fmt: n => fmtNum(n, 1) + ' anni' },
-  { nome: 'Cedola media netta', val: (t, i) => i.cedolaNetta, fmt: n => fmtNum(n) + '%', diff: n => fmtNum(n) + ' pt' },
+  { nome: 'Nominale totale', dec: 0, val: (t) => t.nominale, fmt: n => fmtNum(n, 0) + ' €' },
+  { nome: 'Capitale impiegato (stima)', dec: 0, val: (t) => t.controvalore, fmt: n => fmtNum(n, 0) + ' €' },
+  { nome: 'Cedole annue nette', dec: 2, val: (t) => t.cedoleNette, fmt: n => fmtNum(n) + ' €' },
+  { nome: 'Rendimento netto', dec: 2, val: (t) => t.rendNetto, fmt: n => fmtNum(n) + '%', diff: n => fmtNum(n) + ' pt' },
+  { nome: 'Duration', dec: 1, val: (t) => t.duration, fmt: n => fmtNum(n, 1) + ' anni' },
+  { nome: 'Scadenza media', dec: 1, val: (t, i) => i.scadenzaAnni, fmt: n => fmtNum(n, 1) + ' anni' },
+  { nome: 'Cedola media netta', dec: 2, val: (t, i) => i.cedolaNetta, fmt: n => fmtNum(n) + '%', diff: n => fmtNum(n) + ' pt' },
   { nome: 'Rating medio', val: (t, i) => i.ratingOrdinale, fmt: n => etichettaDaOrdinale(n), diff: () => '' }
 ];
+
+// Il numero come si vede a schermo: così la differenza torna sempre con "Prima" e "Dopo"
+function comeMostrato(n, decimali) {
+  return Number(n.toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: decimali, maximumFractionDigits: decimali }));
+}
 
 export function aggiornaImpatto() {
   const box = document.getElementById('impatto-box');
@@ -244,8 +249,12 @@ export function aggiornaImpatto() {
     const fmtDiff = m.diff || m.fmt;
     let diff = '—';
     if (a !== null && b !== null) {
-      const d = b - a;
-      diff = m.diff && m.diff(0) === '' ? '' : (Math.abs(d) < 0.005 ? '=' : segno(d) + fmtDiff(Math.abs(d)));
+      if (m.diff && m.diff(0) === '') {
+        diff = '';
+      } else {
+        const d = comeMostrato(comeMostrato(b, m.dec) - comeMostrato(a, m.dec), m.dec);
+        diff = d === 0 ? '=' : segno(d) + fmtDiff(Math.abs(d));
+      }
     }
     return `<div class="riga">
       <div>${esc(m.nome)}</div>
