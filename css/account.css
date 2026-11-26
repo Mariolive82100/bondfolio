@@ -8,3 +8,15 @@
 .account-utente { color: var(--testo-soft); font-size: 13px; }
 .account-errore { color: #B42318; font-size: 13px; max-width: 360px; }
 .account .btn { white-space: nowrap; }
+.account-stato { color: var(--testo-soft); font-size: 13px; }
+.account-ok { color: var(--accento); }
+
+/* Riquadro di scelta quando i dati sono diversi */
+.scelta-dati {
+  margin: 20px 32px 0; padding: 16px 20px;
+  background: #FFFAEB; border: 1px solid #F2C46D; border-radius: var(--raggio);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.scelta-dati[hidden] { display: none; }
+.scelta-nota { color: var(--testo-soft); font-size: 13px; }
+.scelta-bottoni { display: flex; gap: 12px; flex-wrap: wrap; }

@@ -32,4 +32,5 @@ export function impostaCostruito(lista) {
 export function correggiCostruito(lista) {
   stato.costruito = lista;
   salvaCostruito(lista);
+  document.dispatchEvent(new CustomEvent('costruito-corretto')); // serve al salvataggio online
 }
