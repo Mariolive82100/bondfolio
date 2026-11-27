@@ -1,10 +1,11 @@
-// Riquadro "Se guardi il mercato oggi" di Costruito e Aggregato: quanto varrebbe vendere ai prezzi del file.
+// Riquadro "Se guardi il mercato oggi" di Costruito e Aggregato: vendere o ricomprare ai prezzi del file.
 // Parte chiuso, perché i dati del portafoglio comprato sono quelli dell'acquisto, e non entra nel report.
 
 import { stato } from './state.js';
 import { riepilogoAcquisti } from './costruito-calcoli.js';
 import { VALUTA_PORTAFOGLIO } from './portafoglio-calcoli.js';
-import { scadutoOggi, dataFile } from './data-calcolo.js';
+import { scadutoOggi, dataFile, dataCalcolo } from './data-calcolo.js';
+import { confrontoRendimenti } from './rendimento.js';
 import { htmlSchedaGain, aggiornaCapitalGain } from './capital-gain.js';
 import { testaComprimibile, classeChiusa } from './comprimibile.js';
 import { esc, fmtNum, fmtData } from './formati.js';
@@ -16,8 +17,14 @@ const conSegno = (n, decimali) => segno(n) + fmtNum(Math.abs(n), decimali);
 export function htmlMercatoOggi() {
   return `
     <section class="card tabella-card mercato${classeChiusa(ID, true)}">
-      ${testaComprimibile(ID, 'Se guardi il mercato oggi', 'riassunto-mercato', 'utile se pensi di vendere · non entra nel report', true)}
+      ${testaComprimibile(ID, 'Se guardi il mercato oggi', 'riassunto-mercato', 'confronto con i prezzi di oggi · non entra nel report', true)}
       <div class="mercato-corpo">
+        <div class="riepilogo riepilogo-confronto">
+          <div class="card"><div class="testo-soft">Rendimento netto al tuo acquisto (stima)</div><div class="valore" id="m-rend-acq"></div><div class="testo-soft">con i tuoi prezzi di carico</div></div>
+          <div class="card"><div class="testo-soft">Rendimento netto se comprassi oggi (stima)</div><div class="valore" id="m-rend-oggi"></div><div class="testo-soft" id="m-rend-oggi-nota"></div></div>
+          <div class="card"><div class="testo-soft">Differenza (oggi − acquisto)</div><div class="valore" id="m-rend-diff"></div><div class="testo-soft" id="m-rend-diff-nota"></div></div>
+        </div>
+        <div class="testo-soft nota-confronto" id="m-rend-nota"></div>
         <div class="riepilogo riepilogo-mercato">
           <div class="card"><div class="testo-soft">Valore oggi</div><div class="valore" id="r-valore"></div></div>
           <div class="card"><div class="testo-soft">Variazione latente dei prezzi</div><div class="valore" id="r-var"></div></div>
@@ -58,11 +65,33 @@ function righe(lotti) {
   }).join('');
 }
 
+// Rendimento di tutto il portafoglio: al tuo acquisto e ricomprando oggi
+function aggiornaConfronto(lotti) {
+  const c = confrontoRendimenti(lotti, stato.titoli, VALUTA_PORTAFOGLIO, scadutoOggi, dataCalcolo());
+  const scrivi = (id, testo) => { document.getElementById(id).textContent = testo; };
+  const pct = n => (n === null ? '—' : fmtNum(n) + '%');
+  scrivi('m-rend-acq', pct(c.acquisto));
+  scrivi('m-rend-oggi', pct(c.oggi));
+  scrivi('m-rend-oggi-nota', c.oggi === null ? '' : 'costo di oggi ' + fmtNum(c.costoOggi, 0) + ' €'
+    + (c.commissioni > 0 ? ', con ' + fmtNum(c.commissioni) + ' € di commissioni' : ', senza commissioni'));
+  // La differenza si calcola sui numeri come si vedono, così torna sempre
+  const due = n => Math.round(n * 100) / 100;
+  const d = c.acquisto === null || c.oggi === null ? null : due(due(c.oggi) - due(c.acquisto));
+  scrivi('m-rend-diff', d === null ? '—' : conSegno(d) + ' pt');
+  scrivi('m-rend-diff-nota', d === null ? ''
+    : d > 0 ? 'oggi compreresti a un rendimento più alto'
+    : d < 0 ? 'oggi compreresti a un rendimento più basso' : 'stesso rendimento');
+  const esclusi = c.totale - c.conteggio;
+  scrivi('m-rend-nota', 'Stessi titoli e stessi nominali, tenuti fino a scadenza. Il tuo rendimento non cambia con i prezzi di oggi.'
+    + (esclusi > 0 ? ' Confronto su ' + c.conteggio + ' di ' + c.totale + ' acquisti: gli altri sono esclusi da entrambi i valori, quindi il rendimento al tuo acquisto qui può differire da quello in alto.' : ''));
+}
+
 // gruppi = un elenco di acquisti per portafoglio; tot = totali delle posizioni ai prezzi del file
 export function aggiornaMercatoOggi(gruppi, tot) {
   const elenco = document.getElementById('righe-mercato');
   if (!elenco) return;
   const lotti = gruppi.flat();
+  aggiornaConfronto(lotti);
   const r = riepilogoAcquisti(lotti, stato.titoli);
   document.getElementById('r-valore').textContent = fmtNum(r.valoreOggi, 0) + ' €';
   const elVar = document.getElementById('r-var');
@@ -73,5 +102,5 @@ export function aggiornaMercatoOggi(gruppi, tot) {
   aggiornaCapitalGain(['oggi'], gruppi, stato.titoli);
   elenco.innerHTML = righe(lotti);
   document.getElementById('nota-mercato').textContent = (dataFile() ? 'Prezzi del file del ' + fmtData(dataFile()) + '. ' : 'Prezzi del file caricato. ')
-    + 'La variazione riguarda solo i prezzi e non comprende rateo né tasse. La plusvalenza netta è una stima, con aliquota 12,5% o 26%, senza commissioni di vendita, disaggio, rateo e zainetto fiscale.';
+    + '«Se comprassi oggi» usa questi prezzi più le commissioni scritte nei tuoi acquisti, con acquisto alla data di oggi. La variazione riguarda solo i prezzi e non comprende rateo né tasse. La plusvalenza netta è una stima, con aliquota 12,5% o 26%, senza commissioni di vendita, disaggio, rateo e zainetto fiscale.';
 }

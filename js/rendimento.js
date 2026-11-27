@@ -89,3 +89,35 @@ export function rendimentoAcquistoPortafoglio(lotti, titoli, valuta, scadutoOggi
   });
   return { rend: pesi > 0 ? somma / pesi : null, conteggio: conteggio, totale: totale };
 }
+
+// Confronto tra il rendimento al tuo acquisto e quello che avresti comprando oggi gli stessi titoli con gli stessi nominali.
+// - "oggi" = prezzo del file, data di calcolo dataOggi; stessa formula dell'acquisto.
+// - Al prezzo di oggi si aggiungono le commissioni scritte in quell'acquisto (il prezzo di carico le comprende già).
+// - Un acquisto entra in entrambe le medie solo se si possono calcolare tutti e due i rendimenti.
+// - Ogni media è pesata sul suo costo: capitale investito per l'acquisto, costo di oggi (commissioni comprese) per oggi.
+// Restituisce { acquisto, oggi, conteggio, totale, costoOggi, commissioni }; totale = tutti gli acquisti ricevuti.
+export function confrontoRendimenti(lotti, titoli, valuta, scadutoOggi, dataOggi) {
+  const perIsin = new Map(titoli.map(t => [t.isin, t]));
+  let sAcq = 0, pAcq = 0, sOggi = 0, pOggi = 0, conteggio = 0, commissioni = 0;
+  lotti.forEach(l => {
+    const t = perIsin.get(l.isin);
+    if (!t || t.valuta !== valuta || scadutoOggi(t) || !(t.prezzo > 0) || !(l.nominale > 0)) return;
+    const comm = l.commissioni || 0;
+    const prezzoOggi = t.prezzo + comm / l.nominale * 100;
+    const yAcq = rendimentoNettoAcquisto(t, l.prezzoCarico, l.data);
+    const yOggi = rendimentoNettoAcquisto(t, prezzoOggi, dataOggi);
+    if (yAcq === null || yOggi === null) return;
+    const costoAcq = l.nominale * l.prezzoCarico / 100;
+    const costo = l.nominale * prezzoOggi / 100;
+    sAcq += yAcq * costoAcq; pAcq += costoAcq;
+    sOggi += yOggi * costo; pOggi += costo;
+    commissioni += comm;
+    conteggio += 1;
+  });
+  return {
+    acquisto: pAcq > 0 ? sAcq / pAcq : null,
+    oggi: pOggi > 0 ? sOggi / pOggi : null,
+    conteggio: conteggio, totale: lotti.length,
+    costoOggi: pOggi, commissioni: commissioni
+  };
+}
