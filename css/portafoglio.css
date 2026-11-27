@@ -102,6 +102,10 @@
 @media (max-width: 1100px) { .mercato-corpo .riepilogo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .mercato-corpo .riepilogo .card { box-shadow: none; border: 1px solid #E4E7EC; }
 .mercato-corpo .riepilogo .valore { font-size: 20px; }
+/* confronto dei rendimenti: 3 riquadri a tutta larghezza (sul telefono valgono le regole di mobile.css) */
+@media (min-width: 821px) { .mercato-corpo .riepilogo.riepilogo-confronto { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.nota-confronto { padding: 0 20px; font-size: 12px; }
+@media (max-width: 820px) { .nota-confronto { padding: 0 10px; } }
 .tabella-mercato { min-width: 640px; }
 .tabella-mercato .riga, .tabella-mercato .riga-testa { grid-template-columns: minmax(180px, 2fr) 90px 100px 90px 80px 100px; column-gap: 10px; }
 
